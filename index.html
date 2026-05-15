@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Todos los meta tags PWA se mantienen igual -->
+    <meta name="application-name" content="Tablero Kanban">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Kanban">
+    <meta name="description" content="Organiza tus tareas de manera eficiente">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-config" content="none">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="theme-color" content="#3b82f6">
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
+
+    <!-- Safari Pinned Tab -->
+    <link rel="mask-icon" href="icons/icon-192x192.png" color="#3b82f6">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- iOS Splash Screens (se mantienen igual) -->
+    <link rel="apple-touch-startup-image" href="splash/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <!-- ... resto de splash screens ... -->
+
+    <meta name="msapplication-config" content="browserconfig.xml">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablero Kanban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .task-card {
+            transition: all 0.3s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .column {
+            min-height: 400px;
+        }
+        .drag-over {
+            background-color: #f0f9ff;
+            border: 2px dashed #3b82f6;
+        }
+        .move-buttons {
+            display: none;
+        }
+        .task-card:hover .move-buttons {
+            display: flex;
+        }
+        
+        /* ESTILOS RESPONSIVOS MEJORADOS */
+        @media (max-width: 768px) {
+            .move-buttons {
+                display: flex !important;
+            }
+            
+            /* Formulario responsivo mejorado */
+            .task-form-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .task-input-mobile {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+            
+            .task-button-mobile {
+                width: 100%;
+                padding: 12px;
+            }
+            
+            /* Ajustes generales para móviles */
+            .mobile-padding {
+                padding: 16px;
+            }
+            
+            .mobile-margin {
+                margin-bottom: 16px;
+            }
+            
+            .mobile-text {
+                font-size: 1.5rem;
+            }
+        }
+        
+        .firebase-status {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .firebase-status.connected {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .firebase-status.disconnected {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+
+        .collapsible-section {
+            transition: all 0.3s ease;
+        }
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .collapsible-section.collapsed .collapsible-content {
+            max-height: 0;
+        }
+        .collapsible-section.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        .toggle-icon {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8 mobile-margin">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2 mobile-text">📋 Tablero Kanban</h1>
+            <p class="text-gray-600">Organiza tus tareas de manera eficiente</p>
+            <div id="firebaseStatusBar" class="mt-2 flex justify-center">
+                <span id="firebaseStatus" class="firebase-status disconnected">⏳ Conectando a Firebase...</span>
+            </div>
+        </div>
+
+        <!-- Main container -->
+        <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-8 mobile-padding">
+            <!-- Save/Import Tasks Section -->
+            <div class="collapsible-section mb-4 collapsed">
+                <button class="section-toggle w-full flex justify-between items-center text-left mb-2" onclick="toggleSection('save-import')">
+                    <h3 class="text-sm font-medium text-gray-700">💾 Guardar e Importar Tareas</h3>
+                    <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="save-import" class="collapsible-content">
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button 
+                            onclick="exportTasks()" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                            Descargar Tareas
+                        </button>
+                        
+                        <label class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 11-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            Cargar Tareas
+                            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importTasks(event)">
+                        </label>
+                        
+                        <button 
+                            onclick="clearAllTasks()" 
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path>
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            Limpiar Todo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add Task Form -->
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">➕ Agregar Nueva Tarea</h2>
+                <div class="task-form-container">
+                    <form id="taskForm" class="flex flex-col md:flex-row gap-4">
+                        <input 
+                            type="text" 
+                            id="taskInput" 
+                            placeholder="Escribe tu tarea aquí..." 
+                            class="task-input-mobile md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                        <button 
+                            type="submit" 
+                            class="task-button-mobile bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors md:w-auto"
+                        >
+                            Agregar Tarea
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- No Iniciado Column -->
+            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="no-iniciado">
+                <div class="flex items-center mb-4">
+                    <div class="w-4 h-4 bg-gray-400 rounded-full mr-3"></div>
+                    <h3 class="text-lg font-semibold text-gray-700">No Iniciado</h3>
+                    <span class="ml-auto bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm" id="count-no-iniciado">0</span>
+                </div>
+                <div id="no-iniciado" class="space-y-3 min-h-[300px]" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <!-- Tasks will be added here -->
+                </div>
+            </div>
+
+            <!-- En Proceso Column -->
+            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="en-proceso">
+                <div class="flex items-center mb-4">
+                    <div class="w-4 h-4 bg-yellow-400 rounded-full mr-3"></div>
+                    <h3 class="text-lg font-semibold text-gray-700">En Proceso</h3>
+                    <span class="ml-auto bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-sm" id="count-en-proceso">0</span>
+                </div>
+                <div id="en-proceso" class="space-y-3 min-h-[300px]" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <!-- Tasks will be added here -->
+                </div>
+            </div>
+
+            <!-- Finalizado Column -->
+            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="finalizado">
+                <div class="flex items-center mb-4">
+                    <div class="w-4 h-4 bg-green-400 rounded-full mr-3"></div>
+                    <h3 class="text-lg font-semibold text-gray-700">Finalizado</h3>
+                    <span class="ml-auto bg-green-100 text-green-600 px-2 py-1 rounded-full text-sm" id="count-finalizado">0</span>
+                </div>
+                <div id="finalizado" class="space-y-3 min-h-[300px]" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <!-- Tasks will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">📊 Estadísticas</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="total-tasks">0</div>
+                    <div class="text-sm text-gray-600">Total de Tareas</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-600" id="pending-tasks">0</div>
+                    <div class="text-sm text-gray-600">Pendientes</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-yellow-600" id="progress-tasks">0</div>
+                    <div class="text-sm text-gray-600">En Progreso</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600" id="completed-tasks">0</div>
+                    <div class="text-sm text-gray-600">Completadas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =====================
+        // FIREBASE CONFIGURATION
+        // =====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBfjYWT2Ex9V4x6ec9Ko1VyJxK_sdhsDpA",
+            authDomain: "ledemisorreceptor.firebaseapp.com",
+            databaseURL: "https://ledemisorreceptor-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "ledemisorreceptor",
+            storageBucket: "ledemisorreceptor.firebasestorage.app",
+            messagingSenderId: "20805551895",
+            appId: "1:20805551895:web:f7ee7ccbb900f8b5ee9952"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const tasksRef = db.ref('kanban/tasks');
+        const counterRef = db.ref('kanban/taskCounter');
+
+        // =====================
+        // APP STATE
+        // =====================
+        let taskCounter = 0;
+        let tasks = [];
+        let isFirebaseLoaded = false;
+
+        // Función para alternar la visibilidad de las secciones
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const parent = section.closest('.collapsible-section');
+            parent.classList.toggle('collapsed');
+        }
+
+        // =====================
+        // FIREBASE STATUS
+        // =====================
+        function updateFirebaseStatus(connected) {
+            const statusEl = document.getElementById('firebaseStatus');
+            if (connected) {
+                statusEl.className = 'firebase-status connected';
+                statusEl.textContent = '🟢 Conectado a Firebase';
+            } else {
+                statusEl.className = 'firebase-status disconnected';
+                statusEl.textContent = '🔴 Desconectado de Firebase';
+            }
+        }
+
+        // Monitor connection state
+        db.ref('.info/connected').on('value', function(snapshot) {
+            updateFirebaseStatus(snapshot.val() === true);
+        });
+
+        // =====================
+        // FIREBASE SYNC
+        // =====================
+
+        // Save tasks to Firebase
+        function saveTasksToFirebase() {
+            if (!isFirebaseLoaded) return;
+            tasksRef.set(tasks);
+            counterRef.set(taskCounter);
+        }
+
+        // Load taskCounter from Firebase
+        counterRef.once('value').then(function(snapshot) {
+            taskCounter = snapshot.val() || 0;
+        });
+
+        // Listen for real-time updates from Firebase
+        tasksRef.on('value', function(snapshot) {
+            const data = snapshot.val();
+
+            // Clear current DOM tasks
+            document.getElementById('no-iniciado').innerHTML = '';
+            document.getElementById('en-proceso').innerHTML = '';
+            document.getElementById('finalizado').innerHTML = '';
+
+            if (data) {
+                tasks = data;
+                // Recalculate taskCounter from existing tasks
+                if (tasks.length > 0) {
+                    taskCounter = Math.max(...tasks.map(t => t.id), taskCounter);
+                }
+                // Render all tasks
+                tasks.forEach(function(task) {
+                    renderTask(task);
+                });
+            } else {
+                tasks = [];
+            }
+
+            updateCounts();
+            isFirebaseLoaded = true;
+        });
+
+        // =====================
+        // TASK OPERATIONS
+        // =====================
+
+        // Add task functionality
+        document.getElementById('taskForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const taskInput = document.getElementById('taskInput');
+            const taskText = taskInput.value.trim();
+            
+            if (taskText) {
+                addTask(taskText);
+                taskInput.value = '';
+            }
+        });
+
+        function addTask(text) {
+            taskCounter++;
+            const task = {
+                id: taskCounter,
+                text: text,
+                status: 'no-iniciado',
+                createdAt: new Date().toLocaleString('es-ES')
+            };
+            
+            tasks.push(task);
+            renderTask(task);
+            updateCounts();
+            saveTasksToFirebase();
+        }
+
+        function renderTask(task) {
+            const taskElement = document.createElement('div');
+            taskElement.className = 'task-card bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-move';
+            taskElement.draggable = true;
+            taskElement.dataset.taskId = task.id;
+            
+            const statusColors = {
+                'no-iniciado': 'border-l-gray-400',
+                'en-proceso': 'border-l-yellow-400',
+                'finalizado': 'border-l-green-400'
+            };
+            
+            taskElement.className += ` border-l-4 ${statusColors[task.status]}`;
+            
+            taskElement.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-gray-800 flex-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" 
+                        ondblclick="editTask(${task.id})" 
+                        title="Doble clic para editar"
+                        id="task-text-${task.id}">${task.text}</h4>
+                    <div class="flex gap-1">
+                        <button onclick="editTask(${task.id})" class="text-blue-500 hover:text-blue-700" title="Editar tarea">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700" title="Eliminar tarea">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-2">Creado: ${task.createdAt}</div>
+                <div class="move-buttons gap-1 justify-center">
+                    ${task.status !== 'no-iniciado' ? `<button onclick="moveTask(${task.id}, 'no-iniciado')" class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs">← Enviar a <b><i>No Iniciado</b></i></button>` : ''}
+                    ${task.status !== 'en-proceso' ? `<button onclick="moveTask(${task.id}, 'en-proceso')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">Enviar a <b><i>En Proceso</b></i></button>` : ''}
+                    ${task.status !== 'finalizado' ? `<button onclick="moveTask(${task.id}, 'finalizado')" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs">Enviar a <b><i>Finalizado</b></i> →</button>` : ''}
+                </div>
+            `;
+            
+            taskElement.addEventListener('dragstart', drag);
+            
+            const column = document.getElementById(task.status);
+            if (column) {
+                column.appendChild(taskElement);
+            }
+        }
+
+        function deleteTask(taskId) {
+            tasks = tasks.filter(task => task.id !== taskId);
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskElement) {
+                taskElement.remove();
+            }
+            updateCounts();
+            saveTasksToFirebase();
+        }
+
+        function moveTask(taskId, newStatus) {
+            const task = tasks.find(t => t.id == taskId);
+            if (task) {
+                task.status = newStatus;
+                const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                if (taskElement) {
+                    taskElement.remove();
+                }
+                renderTask(task);
+                updateCounts();
+                saveTasksToFirebase();
+            }
+        }
+
+        function editTask(taskId) {
+            const task = tasks.find(t => t.id == taskId);
+            if (!task) return;
+            
+            const taskTextElement = document.getElementById(`task-text-${taskId}`);
+            const currentText = task.text;
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentText;
+            input.className = 'w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+            
+            // Replace text with input
+            taskTextElement.innerHTML = '';
+            taskTextElement.appendChild(input);
+            input.focus();
+            input.select();
+            
+            // Save function
+            function saveEdit() {
+                const newText = input.value.trim();
+                if (newText && newText !== currentText) {
+                    task.text = newText;
+                    taskTextElement.innerHTML = newText;
+                    saveTasksToFirebase();
+                    showMessage('✏️ Tarea editada correctamente', 'success');
+                } else {
+                    taskTextElement.innerHTML = currentText;
+                }
+            }
+            
+            // Cancel function
+            function cancelEdit() {
+                taskTextElement.innerHTML = currentText;
+            }
+            
+            // Event listeners
+            input.addEventListener('blur', saveEdit);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+        }
+
+        // =====================
+        // DRAG AND DROP
+        // =====================
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('drag-over');
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.dataset.taskId);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('drag-over');
+            
+            const taskId = ev.dataTransfer.getData("text");
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            const newStatus = ev.currentTarget.id;
+            
+            if (taskElement && newStatus) {
+                // Update task status in data
+                const task = tasks.find(t => t.id == taskId);
+                if (task) {
+                    task.status = newStatus;
+                    
+                    // Remove the old task element and render it again with updated buttons
+                    taskElement.remove();
+                    renderTask(task);
+                    updateCounts();
+                    saveTasksToFirebase();
+                }
+            }
+        }
+
+        // Remove drag-over class when dragging leaves
+        document.querySelectorAll('[ondragover]').forEach(element => {
+            element.addEventListener('dragleave', function(e) {
+                if (!this.contains(e.relatedTarget)) {
+                    this.classList.remove('drag-over');
+                }
+            });
+        });
+
+        // =====================
+        // COUNTS & STATS
+        // =====================
+        function updateCounts() {
+            const counts = {
+                'no-iniciado': 0,
+                'en-proceso': 0,
+                'finalizado': 0
+            };
+            
+            tasks.forEach(task => {
+                counts[task.status]++;
+            });
+            
+            // Update column counts
+            document.getElementById('count-no-iniciado').textContent = counts['no-iniciado'];
+            document.getElementById('count-en-proceso').textContent = counts['en-proceso'];
+            document.getElementById('count-finalizado').textContent = counts['finalizado'];
+            
+            // Update statistics
+            const total = tasks.length;
+            document.getElementById('total-tasks').textContent = total;
+            document.getElementById('pending-tasks').textContent = counts['no-iniciado'];
+            document.getElementById('progress-tasks').textContent = counts['en-proceso'];
+            document.getElementById('completed-tasks').textContent = counts['finalizado'];
+        }
+
+        // =====================
+        // EXPORT / IMPORT / CLEAR
+        // =====================
+
+        // Export tasks to JSON file
+        function exportTasks() {
+            if (tasks.length === 0) {
+                alert('No hay tareas para exportar');
+                return;
+            }
+            
+            const exportData = {
+                tasks: tasks,
+                exportDate: new Date().toISOString(),
+                version: '2.0-firebase'
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `kanban-tareas-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showMessage('✅ Tareas descargadas correctamente', 'success');
+        }
+        
+        // Import tasks from JSON file
+        function importTasks(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importData = JSON.parse(e.target.result);
+                    
+                    if (!importData.tasks || !Array.isArray(importData.tasks)) {
+                        throw new Error('Formato de archivo inválido');
+                    }
+                    
+                    // Clear existing tasks in Firebase
+                    clearAllTasksWithoutConfirm();
+                    
+                    // Import tasks
+                    let importedCount = 0;
+                    importData.tasks.forEach(function(taskData) {
+                        if (taskData.text && taskData.status) {
+                            taskCounter++;
+                            const task = {
+                                id: taskCounter,
+                                text: taskData.text,
+                                status: taskData.status,
+                                createdAt: taskData.createdAt || new Date().toLocaleString('es-ES')
+                            };
+                            tasks.push(task);
+                            renderTask(task);
+                            importedCount++;
+                        }
+                    });
+                    
+                    updateCounts();
+                    saveTasksToFirebase();
+                    showMessage(`✅ ${importedCount} tareas importadas correctamente`, 'success');
+                    
+                } catch (error) {
+                    showMessage('❌ Error al importar el archivo. Verifica que sea un archivo válido.', 'error');
+                    console.error('Import error:', error);
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        // Clear all tasks with confirmation
+        function clearAllTasks() {
+            if (tasks.length === 0) {
+                showMessage('No hay tareas para eliminar', 'info');
+                return;
+            }
+            
+            if (confirm('¿Estás seguro de que quieres eliminar todas las tareas? Esta acción no se puede deshacer.')) {
+                clearAllTasksWithoutConfirm();
+                saveTasksToFirebase();
+                showMessage('🗑️ Todas las tareas han sido eliminadas', 'success');
+            }
+        }
+        
+        // Clear all tasks without confirmation (used internally)
+        function clearAllTasksWithoutConfirm() {
+            tasks = [];
+            taskCounter = 0;
+            
+            document.getElementById('no-iniciado').innerHTML = '';
+            document.getElementById('en-proceso').innerHTML = '';
+            document.getElementById('finalizado').innerHTML = '';
+            
+            updateCounts();
+        }
+        
+        // Show temporary message
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            const colors = {
+                success: 'bg-green-100 border-green-400 text-green-700',
+                error: 'bg-red-100 border-red-400 text-red-700',
+                info: 'bg-blue-100 border-blue-400 text-blue-700'
+            };
+            
+            messageDiv.className = `fixed top-4 right-4 px-4 py-3 rounded border-l-4 ${colors[type]} shadow-lg z-50 max-w-sm`;
+            messageDiv.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg font-bold">&times;</button>
+                </div>
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(function() {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // =====================
+        // PWA Installation
+        // =====================
+        let deferredPrompt;
+        const installButton = document.createElement('button');
+
+        function createInstallButton() {
+            installButton.innerHTML = '📱 Instalar App';
+            installButton.className = 'fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg z-40 flex items-center gap-2 transition-all duration-300';
+            installButton.style.display = 'none';
+            installButton.onclick = installPWA;
+            document.body.appendChild(installButton);
+        }
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            console.log('beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.style.display = 'flex';
+            
+            setTimeout(function() {
+                if (installButton.style.display !== 'none') {
+                    installButton.style.display = 'none';
+                }
+            }, 15000);
+        });
+
+        async function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                
+                console.log(`User response to the install prompt: ${outcome}`);
+                
+                if (outcome === 'accepted') {
+                    installButton.style.display = 'none';
+                    showMessage('✅ App instalada correctamente', 'success');
+                }
+                
+                deferredPrompt = null;
+            }
+        }
+
+        window.addEventListener('appinstalled', function() {
+            console.log('PWA was installed');
+            installButton.style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registrado con éxito: ', registration.scope);
+                        
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            console.log('Nueva versión del Service Worker encontrada');
+                            
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('Nueva versión lista para activar');
+                                    showMessage('🔄 Nueva versión disponible. Recarga la página.', 'info');
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.log('Error al registrar ServiceWorker: ', error);
+                    });
+            });
+            
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+                window.location.reload();
+            });
+        }
+
+        // Detectar si es PWA
+        function isRunningAsPWA() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true;
+        }
+
+        if (isRunningAsPWA()) {
+            document.documentElement.classList.add('pwa-mode');
+            console.log('Ejecutando como PWA');
+        }
+
+        window.addEventListener('DOMContentLoaded', createInstallButton);
+    </script>
+</body>
+</html>
