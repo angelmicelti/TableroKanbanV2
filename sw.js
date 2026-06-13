@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kanban-pwa-v3';
+const CACHE_NAME = 'kanban-pwa-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,7 +6,15 @@ const urlsToCache = [
   './favicon.ico',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
-  './icons/icon-152x152.png'
+  './icons/icon-152x152.png',
+  './js/main.js',
+  './js/config.js',
+  './js/utils.js',
+  './js/state.js',
+  './js/firebase-service.js',
+  './js/tasks.js',
+  './js/import-export.js',
+  './js/pwa.js'
 ];
 
 // Install event - cache core files
