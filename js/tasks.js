@@ -5,7 +5,7 @@
 
 import { state } from './state.js';
 import { VALID_STATUSES } from './config.js';
-import { escapeHtml, showMessage } from './utils.js';
+import { escapeHtml, showMessage, showConfirm } from './utils.js';
 import { getTasksRef, getCounterRef } from './firebase-service.js';
 
 // ---------------------------------------------------------------------
@@ -198,17 +198,40 @@ export function clearAllTasksLocal() {
     updateCounts();
 }
 
-/** Limpia todo con confirmación del usuario. */
-export function clearAllTasks() {
+/**
+ * Limpia todas las tareas pidiendo confirmación con un modal custom
+ * (consistente con el sistema de toasts `showMessage`) en vez del
+ * antiestético `window.confirm` del navegador.
+ *
+ * Guard contra doble-click: si ya hay un modal de confirmación
+ * abierto, las llamadas adicionales se ignoran para evitar abrir
+ * modales concurrentes.
+ */
+let isClearing = false;
+export async function clearAllTasks() {
+    if (isClearing) return;
     if (state.tasks.length === 0) {
         showMessage('No hay tareas para eliminar', 'info');
         return;
     }
 
-    if (window.confirm('\u00bfEst\u00e1s seguro de que quieres eliminar todas las tareas? Esta acci\u00f3n no se puede deshacer.')) {
-        clearAllTasksLocal();
-        saveTasksToFirebase();
-        showMessage('\ud83d\uddd1\ufe0f Todas las tareas han sido eliminadas', 'success');
+    isClearing = true;
+    try {
+        const confirmed = await showConfirm({
+            title: 'Eliminar todas las tareas',
+            message: '¿Estás seguro de que quieres eliminar todas las tareas? Esta acción no se puede deshacer.',
+            confirmText: 'Eliminar todo',
+            cancelText: 'Cancelar',
+            danger: true
+        });
+
+        if (confirmed) {
+            clearAllTasksLocal();
+            saveTasksToFirebase();
+            showMessage('\ud83d\uddd1\ufe0f Todas las tareas han sido eliminadas', 'success');
+        }
+    } finally {
+        isClearing = false;
     }
 }
 
