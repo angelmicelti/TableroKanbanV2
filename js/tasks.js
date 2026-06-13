@@ -247,7 +247,7 @@ export function renderTask(task) {
     taskElement.innerHTML = `
         <div class="flex justify-between items-start mb-2">
             <h4 class="font-medium text-gray-800 flex-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-                data-action="edit-task"
+                data-dblclick-edit
                 data-task-id="${task.id}"
                 title="Doble clic para editar"
                 id="task-text-${task.id}">${safeText}</h4>
