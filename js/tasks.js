@@ -4,9 +4,10 @@
 // CRUD, renderizado, edición inline, contadores y limpieza.
 
 import { state } from './state.js';
-import { VALID_STATUSES } from './config.js';
+import { VALID_STATUSES, getLabelById, getNextLabel } from './config.js';
 import { escapeHtml, showMessage, showConfirm } from './utils.js';
 import { getTasksRef, getCounterRef } from './firebase-service.js';
+import { markDirty } from './boards.js';
 
 // ---------------------------------------------------------------------
 // Persistencia
@@ -88,7 +89,7 @@ export function setupTasksListener(onLoaded) {
 // CRUD
 // ---------------------------------------------------------------------
 
-export function addTask(text) {
+export function addTask(text, labelId) {
     // Recalcular el contador a partir de las tareas existentes para
     // evitar colisiones de IDs si Firebase aún no había terminado de
     // cargar el contador remoto.
@@ -100,12 +101,29 @@ export function addTask(text) {
         id: state.taskCounter,
         text,
         status: 'no-iniciado',
-        createdAt: new Date().toLocaleString('es-ES')
+        createdAt: new Date().toLocaleString('es-ES'),
+        label: labelId || null
     };
 
     state.tasks.push(task);
     renderTask(task);
     updateCounts();
+    markDirty();
+    saveTasksToFirebase();
+}
+
+/**
+ * Cambia la etiqueta de una tarea a la siguiente del ciclo.
+ */
+export function cycleTaskLabel(taskId) {
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const next = getNextLabel(task.label);
+    task.label = next ? next.id : null;
+    const el = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (el) el.remove();
+    renderTask(task);
+    markDirty();
     saveTasksToFirebase();
 }
 
@@ -114,6 +132,7 @@ export function deleteTask(taskId) {
     const el = document.querySelector(`[data-task-id="${taskId}"]`);
     if (el) el.remove();
     updateCounts();
+    markDirty();
     saveTasksToFirebase();
 }
 
@@ -127,7 +146,53 @@ export function moveTask(taskId, newStatus) {
     if (el) el.remove();
     renderTask(task);
     updateCounts();
+    markDirty();
     saveTasksToFirebase();
+}
+
+// ---------------------------------------------------------------------
+// Reordenar columna (sincronizar state.tasks con el orden del DOM)
+// ---------------------------------------------------------------------
+
+/**
+ * Reordena las tareas de una columna en `state.tasks` para que coincidan
+ * con el orden actual del DOM. Se llama después de un drag & drop que ya
+ * movió el elemento en el DOM.
+ * @param {string} status - Estado de la columna a reordenar
+ */
+export function reorderColumn(status) {
+    const column = document.getElementById(status);
+    if (!column) return;
+
+    const taskElements = column.querySelectorAll('[data-task-id]');
+    const domOrder = Array.from(taskElements).map(el => parseInt(el.dataset.taskId, 10));
+
+    // Separar tareas de esta columna y del resto
+    const otherTasks = state.tasks.filter(t => t.status !== status);
+    const columnTasks = state.tasks.filter(t => t.status === status);
+
+    // Mapa para búsqueda rápida por ID
+    const taskMap = {};
+    columnTasks.forEach(t => { taskMap[t.id] = t; });
+
+    // Reordenar según el DOM
+    const reordered = [];
+    const seen = new Set();
+    for (const id of domOrder) {
+        if (taskMap[id]) {
+            reordered.push(taskMap[id]);
+            seen.add(id);
+        }
+    }
+    // Añadir las que pudieran faltar en el DOM (seguridad)
+    for (const t of columnTasks) {
+        if (!seen.has(t.id)) {
+            reordered.push(t);
+        }
+    }
+
+    state.tasks = [...otherTasks, ...reordered];
+    updateCounts();
 }
 
 // ---------------------------------------------------------------------
@@ -159,6 +224,7 @@ export function editTask(taskId) {
             task.text = newText;
             // textContent para evitar XSS al re-renderizar
             taskTextElement.textContent = newText;
+            markDirty();
             saveTasksToFirebase();
             showMessage('\u270f\ufe0f Tarea editada correctamente', 'success');
         } else {
@@ -227,6 +293,7 @@ export async function clearAllTasks() {
 
         if (confirmed) {
             clearAllTasksLocal();
+            markDirty();
             saveTasksToFirebase();
             showMessage('\ud83d\uddd1\ufe0f Todas las tareas han sido eliminadas', 'success');
         }
@@ -260,6 +327,7 @@ export function renderTask(task) {
     taskElement.className = 'task-card bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-move';
     taskElement.draggable = true;
     taskElement.dataset.taskId = task.id;
+    taskElement.dataset.label = task.label || '';
     taskElement.className += ` border-l-4 ${STATUS_COLORS[task.status]}`;
 
     // Escapar texto controlado por el usuario antes de inyectarlo
@@ -267,14 +335,31 @@ export function renderTask(task) {
     const safeText       = escapeHtml(task.text);
     const safeCreatedAt  = escapeHtml(task.createdAt || '');
 
+    // Etiqueta
+    const label = task.label ? getLabelById(task.label) : null;
+    const labelHtml = label
+        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${label.bg} ${label.text} cursor-pointer hover:opacity-80 transition-opacity"
+                  data-action="cycle-label" data-task-id="${task.id}" title="Cambiar etiqueta">
+               <span class="w-1.5 h-1.5 ${label.dot} rounded-full"></span>
+               ${escapeHtml(label.name)}
+           </span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-400 border border-dashed border-gray-300 cursor-pointer hover:border-gray-400 hover:text-gray-500 transition-colors"
+                  data-action="cycle-label" data-task-id="${task.id}" title="Añadir etiqueta">
+               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+               Etiqueta
+           </span>`;
+
     taskElement.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-            <h4 class="font-medium text-gray-800 flex-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-                data-dblclick-edit
-                data-task-id="${task.id}"
-                title="Doble clic para editar"
-                id="task-text-${task.id}">${safeText}</h4>
-            <div class="flex gap-1">
+        <div class="flex items-start gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+                ${labelHtml}
+                <h4 class="font-medium text-gray-800 mt-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                    data-dblclick-edit
+                    data-task-id="${task.id}"
+                    title="Doble clic para editar"
+                    id="task-text-${task.id}">${safeText}</h4>
+            </div>
+            <div class="flex gap-1 flex-shrink-0">
                 <button data-action="edit-task" data-task-id="${task.id}"
                         class="text-blue-500 hover:text-blue-700" title="Editar tarea">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
