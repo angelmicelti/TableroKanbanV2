@@ -124,34 +124,37 @@ export function updateCounts() {
 // Listener de tareas (Firebase -> estado local -> DOM)
 // ---------------------------------------------------------------------
 
-// Guard a nivel de módulo para asegurar que setupTasksListener solo
-// ejecute su callback UNA vez, incluso si `once('value')` de Firebase
-// volviera a dispararse tras un `set()` (comportamiento observado en
-// el SDK compat). Al estar fuera de la función, persiste entre
-// potenciales llamadas duplicadas a setupTasksListener.
-let _firebaseListenerAttached = false;
+// Guard a nivel de módulo: solo permitimos UNA carga de datos desde
+// Firebase en toda la vida de la página. Firebase Realtime Database
+// puede re-disparar eventos tras `set()` incluso con `once('value')`
+// (comportamiento observado en el SDK compat). Este guard, combinado
+// con la forma Promise de `once('value')`, asegura que solo la primera
+// resolución se procese.
+let _dataLoaded = false;
 
 /**
  * Carga inicial de tareas desde Firebase (una sola vez).
- * Usa un guard a nivel de módulo y `on('value')` con `off('value')`
- * explícito para asegurar que el callback se ejecute UNA SOLA VEZ
- * en toda la vida de la página, incluso si Firebase re-dispara el
- * evento tras `saveTasksToFirebase().set()`.
+ * Usa la forma Promise de `once('value')` que resuelve UNA SOLA
+ * PROMESA, a diferencia de la forma callback que Firebase podría
+ * re-disparar internamente. El guard `_dataLoaded` impide cualquier
+ * procesamiento duplicado incluso si la Promise resolviera más de una vez.
  *
  * Invoca `onLoaded` cuando los datos están listos, para que
  * `main.js` pueda reactivar el formulario en ese momento.
  */
 export function setupTasksListener(onLoaded) {
-    // Si ya se ejecutó una vez, ignorar por completo
-    if (_firebaseListenerAttached) {
-        console.warn('⚠️ setupTasksListener: segunda llamada ignorada');
+    if (_dataLoaded) {
+        console.warn('setupTasksListener: ya ejecutado, ignorando');
         return;
     }
-    _firebaseListenerAttached = true;
 
-    const callback = snapshot => {
-        // Desvincularnos inmediatamente para que no vuelva a dispararse
-        getTasksRef().off('value', callback);
+    getTasksRef().once('value').then(snapshot => {
+        // Si ya se procesaron datos, salir inmediatamente
+        if (_dataLoaded) {
+            console.warn('setupTasksListener: datos ya cargados, ignorando snapshot duplicado');
+            return;
+        }
+        _dataLoaded = true;
 
         console.log('setupTasksListener: cargando datos desde Firebase');
         const data = snapshot.val();
@@ -174,9 +177,13 @@ export function setupTasksListener(onLoaded) {
         updateCounts();
         state.isFirebaseLoaded = true;
         if (onLoaded) onLoaded();
-    };
-
-    getTasksRef().on('value', callback);
+    }).catch(err => {
+        console.error('Error al cargar tareas desde Firebase:', err);
+        // Aún si hay error, marcamos como cargado para no bloquear
+        _dataLoaded = true;
+        state.isFirebaseLoaded = true;
+        if (onLoaded) onLoaded();
+    });
 }
 
 // ---------------------------------------------------------------------

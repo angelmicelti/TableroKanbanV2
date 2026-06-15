@@ -145,4 +145,4 @@ export const FIREBASE_LOAD_TIMEOUT_MS = 10000;
 // Se incrementa en cada despliegue importante. Si la versión almacenada
 // en localStorage no coincide, borramos IndexedDB (caché de Firebase SDK)
 // y recargamos para forzar datos frescos desde el servidor.
-export const APP_VERSION = '25';
+export const APP_VERSION = '26';
