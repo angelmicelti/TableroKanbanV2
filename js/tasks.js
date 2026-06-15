@@ -219,7 +219,23 @@ export function addTask(text, labelId) {
 /**
  * Cambia la etiqueta de una tarea a la siguiente del ciclo.
  */
+// Guard para evitar que cycleTaskLabel se ejecute múltiples veces
+// para la misma tarea si el clic se propaga a varios elementos
+// (por ejemplo, si hay elementos `.task-card` duplicados en el DOM).
+let _cycleInProgress = false;
+let _lastCycledTaskId = null;
+
 export function cycleTaskLabel(taskId) {
+    // Si ya estamos procesando UN ciclo de etiqueta, ignorar llamadas
+    // adicionales. Esto evita que el event handler se dispare múltiples
+    // veces para el mismo clic cuando hay elementos duplicados en el DOM.
+    if (_cycleInProgress && _lastCycledTaskId === taskId) {
+        console.warn('cycleTaskLabel: ciclo en progreso para tarea', taskId, 'ignorando llamada duplicada');
+        return;
+    }
+    _cycleInProgress = true;
+    _lastCycledTaskId = taskId;
+
     console.log('=== cycleTaskLabel INICIO ===', { taskId, tasksBefore: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
 
     // Limpiar posibles duplicados antes de operar
@@ -228,18 +244,22 @@ export function cycleTaskLabel(taskId) {
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) {
         console.warn('cycleTaskLabel: tarea no encontrada', taskId);
+        _cycleInProgress = false;
         return;
     }
     const next = getNextLabel(task.label);
     console.log('cycleTaskLabel: tarea encontrada', { id: task.id, text: task.text, oldLabel: task.label, newLabel: next?.id || null, nextLabelName: next?.name || null });
     task.label = next ? next.id : null;
-    const el = document.querySelector(`[data-task-id="${taskId}"]`);
+    // Usar .task-card cualificado para eliminar SOLO la tarjeta, no hijos
+    const el = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
     console.log('cycleTaskLabel: elemento encontrado para eliminar', el ? el.className : 'null');
     if (el) el.remove();
     renderTask(task);
     markDirty();
     saveTasksToFirebase();
     console.log('=== cycleTaskLabel FIN ===', { tasksAfter: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
+
+    _cycleInProgress = false;
 }
 
 export function deleteTask(taskId) {
