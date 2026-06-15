@@ -5,7 +5,7 @@
 // Realtime Database, el monitor de conexión y la carga inicial del
 // contador de IDs.
 
-import { FIREBASE_CONFIG } from './config.js';
+import { FIREBASE_CONFIG, APP_NAMESPACE } from './config.js';
 import { state } from './state.js';
 
 let db = null;
@@ -20,8 +20,8 @@ export function initFirebase() {
     if (db) return;
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
-    tasksRef = db.ref('kanban/tasks');
-    counterRef = db.ref('kanban/taskCounter');
+    tasksRef = db.ref(APP_NAMESPACE + '/tasks');
+    counterRef = db.ref(APP_NAMESPACE + '/taskCounter');
 }
 
 export function getTasksRef() {
