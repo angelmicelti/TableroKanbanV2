@@ -50,9 +50,12 @@ export function saveTasksToFirebase() {
  */
 function cleanupDomDuplicates() {
     // 1. Eliminar duplicados exactos (mismo ID en cualquier columna,
-    //    mantener solo el primero encontrado en orden de documento)
+    //    mantener solo el primero encontrado en orden de documento).
+    //    NOTA: Usamos .task-card[data-task-id] para seleccionar SOLO las
+    //    tarjetas, no los elementos hijos (como el span de la etiqueta)
+    //    que también llevan data-task-id.
     const seen = new Map();
-    document.querySelectorAll('[data-task-id]').forEach(el => {
+    document.querySelectorAll('.task-card[data-task-id]').forEach(el => {
         const id = el.dataset.taskId;
         if (seen.has(id)) {
             el.remove();
@@ -80,7 +83,7 @@ function cleanupDomDuplicates() {
 
     // 3. Eliminar elementos huérfanos (task ID que ya no existe en state)
     const activeIds = new Set(state.tasks.map(t => String(t.id)));
-    document.querySelectorAll('[data-task-id]').forEach(el => {
+    document.querySelectorAll('.task-card[data-task-id]').forEach(el => {
         if (!activeIds.has(el.dataset.taskId)) {
             el.remove();
         }
@@ -259,7 +262,7 @@ export function reorderColumn(status) {
     const column = document.getElementById(status);
     if (!column) return;
 
-    const taskElements = column.querySelectorAll('[data-task-id]');
+    const taskElements = column.querySelectorAll('.task-card[data-task-id]');
     const domOrder = Array.from(taskElements).map(el => parseInt(el.dataset.taskId, 10));
 
     // Separar tareas de esta columna y del resto
@@ -482,9 +485,11 @@ export function renderTask(task) {
 
     const column = document.getElementById(task.status);
     if (column) {
-        // Eliminar cualquier elemento existente con el mismo data-task-id
-        // (prevenir duplicados en el DOM si renderTask se llama múltiples veces)
-        const existing = column.querySelector(`[data-task-id="${task.id}"]`);
+        // Eliminar cualquier tarjeta existente con el mismo data-task-id
+        // (prevenir duplicados en el DOM si renderTask se llama múltiples veces).
+        // NOTA: Buscamos .task-card, no cualquier hijo con data-task-id, para
+        // no eliminar elementos como el span de la etiqueta.
+        const existing = column.querySelector(`.task-card[data-task-id="${task.id}"]`);
         if (existing) existing.remove();
         column.appendChild(taskElement);
     }
