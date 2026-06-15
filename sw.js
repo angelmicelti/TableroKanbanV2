@@ -1,9 +1,10 @@
-const CACHE_NAME = 'kanban-pwa-v6';
+const CACHE_NAME = 'kanban-pwa-v10';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './favicon.ico',
+  './icons/favicon.svg',
+  './splash/splash-design.svg',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/icon-152x152.png',
