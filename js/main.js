@@ -37,6 +37,8 @@ import {
     isCurrentUserAdmin,
     getAllUsers,
     deleteUser,
+    changePassword,
+    adminSetPassword,
     renderAuthUI
 } from './auth.js';
 import {
@@ -673,6 +675,7 @@ function setupAuth() {
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
     const showRegisterLink = document.getElementById('showRegisterLink');
     const showLoginLink = document.getElementById('showLoginLink');
     const loginForm = document.getElementById('loginForm');
@@ -694,6 +697,12 @@ function setupAuth() {
     }
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
+    }
+    if (changePasswordBtn) {
+        changePasswordBtn.addEventListener('click', () => {
+            const user = getCurrentUser();
+            if (user) showChangePasswordDialog(user.username, true);
+        });
     }
 
     // Enter para enviar en login
@@ -891,10 +900,24 @@ async function showManageUsersDialog() {
             }
 
             const right = document.createElement('div');
+            right.className = 'flex items-center gap-1';
+
+            // Botón cambiar contraseña (disponible para todos los usuarios)
+            const changePwdBtn = document.createElement('button');
+            changePwdBtn.type = 'button';
+            changePwdBtn.className = 'text-xs text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors';
+            changePwdBtn.textContent = '🔑';
+            changePwdBtn.title = 'Cambiar contraseña';
+            changePwdBtn.addEventListener('click', () => {
+                const isOwn = u.username === getCurrentUser()?.username;
+                showChangePasswordDialog(u.username, isOwn);
+            });
+            right.appendChild(changePwdBtn);
+
             if (!u.isAdmin) {
                 const delBtn = document.createElement('button');
                 delBtn.type = 'button';
-                delBtn.className = 'text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors';
+                delBtn.className = 'text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition-colors';
                 delBtn.textContent = 'Eliminar';
                 delBtn.addEventListener('click', async () => {
                     const confirmed = await showConfirm({
@@ -955,6 +978,204 @@ async function showManageUsersDialog() {
 
     overlay.addEventListener('click', e => {
         if (e.target === overlay) closeDialog();
+    });
+}
+
+// ---------------------------------------------------------------------
+// Diálogo para cambiar contraseña
+// ---------------------------------------------------------------------
+
+/**
+ * Muestra un diálogo modal para cambiar la contraseña.
+ * @param {string} username - Nombre del usuario
+ * @param {boolean} isOwn - Si es la contraseña del usuario actual (pide verificación)
+ */
+function showChangePasswordDialog(username, isOwn) {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'app-modal';
+    modal.style.maxWidth = '28rem';
+
+    const title = document.createElement('h3');
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2';
+    title.textContent = isOwn ? '🔑 Cambiar mi contraseña' : `🔑 Cambiar contraseña de "${escapeHtml(username)}"`;
+
+    const message = document.createElement('p');
+    message.className = 'text-gray-500 dark:text-gray-400 text-sm mb-4';
+    message.textContent = isOwn
+        ? 'Verifica tu contraseña actual y escribe la nueva dos veces.'
+        : 'Escribe la nueva contraseña dos veces para el usuario.';
+
+    const form = document.createElement('div');
+    form.className = 'space-y-3';
+
+    let currentPasswordInput = null;
+    if (isOwn) {
+        currentPasswordInput = document.createElement('input');
+        currentPasswordInput.type = 'password';
+        currentPasswordInput.id = 'changePwdCurrent';
+        currentPasswordInput.placeholder = 'Contraseña actual';
+        currentPasswordInput.className = 'w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all';
+        form.appendChild(currentPasswordInput);
+    }
+
+    const newPasswordInput = document.createElement('input');
+    newPasswordInput.type = 'password';
+    newPasswordInput.id = 'changePwdNew';
+    newPasswordInput.placeholder = 'Nueva contraseña';
+    newPasswordInput.className = 'w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all';
+    form.appendChild(newPasswordInput);
+
+    const confirmInput = document.createElement('input');
+    confirmInput.type = 'password';
+    confirmInput.id = 'changePwdConfirm';
+    confirmInput.placeholder = 'Repetir nueva contraseña';
+    confirmInput.className = 'w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all';
+    form.appendChild(confirmInput);
+
+    const errorMsg = document.createElement('p');
+    errorMsg.className = 'text-red-500 text-xs hidden';
+    errorMsg.id = 'changePwdError';
+    form.appendChild(errorMsg);
+
+    const buttonsRow = document.createElement('div');
+    buttonsRow.className = 'flex justify-end gap-3 mt-4';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400';
+    cancelBtn.textContent = 'Cancelar';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
+    saveBtn.textContent = 'Guardar contraseña';
+
+    // Loading state
+    let isLoading = false;
+
+    async function handleSave() {
+        if (isLoading) return;
+
+        const newPwd = newPasswordInput.value;
+        const confirmPwd = confirmInput.value;
+
+        // Validaciones
+        if (isOwn && !currentPasswordInput.value) {
+            showFieldError('La contraseña actual es obligatoria.');
+            currentPasswordInput.focus();
+            return;
+        }
+        if (!newPwd) {
+            showFieldError('La nueva contraseña es obligatoria.');
+            newPasswordInput.focus();
+            return;
+        }
+        if (newPwd.length < 4) {
+            showFieldError('La contraseña debe tener al menos 4 caracteres.');
+            newPasswordInput.focus();
+            return;
+        }
+        if (newPwd !== confirmPwd) {
+            showFieldError('Las contraseñas no coinciden.');
+            confirmInput.value = '';
+            confirmInput.focus();
+            return;
+        }
+
+        hideFieldError();
+        isLoading = true;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
+
+        let result;
+        if (isOwn) {
+            result = await changePassword(username, currentPasswordInput.value, newPwd);
+        } else {
+            result = await adminSetPassword(username, newPwd);
+        }
+
+        isLoading = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar contraseña';
+
+        if (result.success) {
+            close();
+            showMessage('✅ Contraseña actualizada correctamente', 'success');
+        } else {
+            showFieldError(result.error);
+        }
+    }
+
+    function showFieldError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.remove('hidden');
+    }
+
+    function hideFieldError() {
+        errorMsg.classList.add('hidden');
+    }
+
+    buttonsRow.appendChild(cancelBtn);
+    buttonsRow.appendChild(saveBtn);
+    modal.appendChild(title);
+    modal.appendChild(message);
+    modal.appendChild(form);
+    modal.appendChild(buttonsRow);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    if (currentPasswordInput) {
+        currentPasswordInput.focus();
+    } else {
+        newPasswordInput.focus();
+    }
+
+    function close() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKeyDown);
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            close();
+        } else if (e.key === 'Enter' && document.activeElement !== cancelBtn) {
+            e.preventDefault();
+            handleSave();
+        }
+    }
+
+    cancelBtn.addEventListener('click', close);
+    saveBtn.addEventListener('click', handleSave);
+    document.addEventListener('keydown', onKeyDown);
+
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) close();
+    });
+
+    // Enter en inputs
+    if (currentPasswordInput) {
+        currentPasswordInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                newPasswordInput.focus();
+            }
+        });
+    }
+    newPasswordInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmInput.focus();
+        }
+    });
+    confirmInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSave();
+        }
     });
 }
 
