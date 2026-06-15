@@ -227,29 +227,34 @@ export async function deleteUser(username) {
  */
 export function renderAuthUI() {
     const user = getCurrentUser();
-    const authContainer = document.getElementById('authContainer');
+    const authOverlay = document.getElementById('authOverlay');
+    const appContainer = document.getElementById('appContainer');
     const userInfo = document.getElementById('userInfo');
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const userBadge = document.getElementById('userBadge');
 
-    if (!authContainer) return;
+    if (!authOverlay) return;
 
     if (user) {
-        authContainer.classList.add('hidden');
+        // Fade out: ocultar overlay, mostrar app
+        authOverlay.classList.add('auth-overlay--hidden');
+        if (appContainer) {
+            appContainer.classList.remove('app-container--dimmed');
+        }
         userInfo.classList.remove('hidden');
         if (userBadge) {
             userBadge.innerHTML = '';
             const dot = document.createElement('span');
             dot.className = 'w-2 h-2 bg-green-500 rounded-full';
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'font-medium';
+            nameSpan.className = 'font-medium dark:text-gray-200';
             nameSpan.textContent = user.username;
             userBadge.appendChild(dot);
             userBadge.appendChild(nameSpan);
             if (user.isAdmin) {
                 const adminBadge = document.createElement('span');
-                adminBadge.className = 'text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium';
+                adminBadge.className = 'text-xs bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 px-1.5 py-0.5 rounded-full font-medium';
                 adminBadge.textContent = 'Admin';
                 userBadge.appendChild(adminBadge);
             }
@@ -257,7 +262,11 @@ export function renderAuthUI() {
         if (loginForm) loginForm.classList.add('hidden');
         if (registerForm) registerForm.classList.add('hidden');
     } else {
-        authContainer.classList.remove('hidden');
+        // Fade in: mostrar overlay, ocultar app
+        authOverlay.classList.remove('auth-overlay--hidden');
+        if (appContainer) {
+            appContainer.classList.add('app-container--dimmed');
+        }
         userInfo.classList.add('hidden');
         if (loginForm) loginForm.classList.remove('hidden');
         if (registerForm) registerForm.classList.add('hidden');
