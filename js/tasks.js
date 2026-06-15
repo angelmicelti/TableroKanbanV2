@@ -16,7 +16,7 @@ import { markDirty } from './boards.js';
 /**
  * Deduplica el array de tareas por ID, manteniendo la primera ocurrencia.
  */
-function deduplicateTasks(tasks) {
+export function deduplicateTasks(tasks) {
     const seen = new Set();
     return tasks.filter(t => {
         if (!t || seen.has(t.id)) return false;
@@ -111,6 +111,9 @@ export function setupTasksListener(onLoaded) {
 // ---------------------------------------------------------------------
 
 export function addTask(text, labelId) {
+    // Limpiar posibles duplicados antes de operar
+    state.tasks = deduplicateTasks(state.tasks);
+
     // Recalcular el contador a partir de las tareas existentes para
     // evitar colisiones de IDs si Firebase aún no había terminado de
     // cargar el contador remoto.
@@ -137,6 +140,9 @@ export function addTask(text, labelId) {
  * Cambia la etiqueta de una tarea a la siguiente del ciclo.
  */
 export function cycleTaskLabel(taskId) {
+    // Limpiar posibles duplicados antes de operar
+    state.tasks = deduplicateTasks(state.tasks);
+
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) return;
     const next = getNextLabel(task.label);
@@ -149,6 +155,9 @@ export function cycleTaskLabel(taskId) {
 }
 
 export function deleteTask(taskId) {
+    // Limpiar posibles duplicados antes de operar
+    state.tasks = deduplicateTasks(state.tasks);
+
     state.tasks = state.tasks.filter(t => t.id !== taskId);
     const el = document.querySelector(`[data-task-id="${taskId}"]`);
     if (el) el.remove();
@@ -159,6 +168,9 @@ export function deleteTask(taskId) {
 
 export function moveTask(taskId, newStatus) {
     if (!VALID_STATUSES.includes(newStatus)) return;
+    // Limpiar posibles duplicados antes de operar
+    state.tasks = deduplicateTasks(state.tasks);
+
     const task = state.tasks.find(t => t.id == taskId);
     if (!task) return;
 
@@ -221,6 +233,9 @@ export function reorderColumn(status) {
 // ---------------------------------------------------------------------
 
 export function editTask(taskId) {
+    // Limpiar posibles duplicados antes de operar
+    state.tasks = deduplicateTasks(state.tasks);
+
     const task = state.tasks.find(t => t.id == taskId);
     if (!task) return;
 

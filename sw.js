@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kanban-pwa-v18';
+const CACHE_NAME = 'kanban-pwa-v19';
 const urlsToCache = [
   './',
   './index.html',

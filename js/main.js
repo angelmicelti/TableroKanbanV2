@@ -25,7 +25,8 @@ import {
     saveTasksToFirebase,
     updateCounts,
     reorderColumn,
-    cycleTaskLabel
+    cycleTaskLabel,
+    deduplicateTasks
 } from './tasks.js';
 import { getAllLabels, addCustomLabel, deleteCustomLabel, COLOR_PALETTE } from './config.js';
 import { exportTasks, importTasks } from './import-export.js';
@@ -567,6 +568,9 @@ function setupDragAndDrop() {
             const taskId = parseInt(e.dataTransfer.getData('text/plain'), 10);
             const newStatus = column.dataset.dropZone;
             if (!taskId || !newStatus || !VALID_STATUSES.includes(newStatus)) return;
+
+            // Limpiar posibles duplicados antes de operar
+            state.tasks = deduplicateTasks(state.tasks);
 
             const task = state.tasks.find(t => t.id === taskId);
             if (!task) return;
@@ -1266,7 +1270,45 @@ function setupKeyboardShortcuts() {
             e.preventDefault();
             handleSaveBoard();
         }
+        // Ctrl+Shift+D: mostrar/ocultar panel de diagnóstico
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            toggleDebugPanel();
+        }
     });
+}
+
+// ---------------------------------------------------------------------
+// Panel de diagnóstico (Ctrl+Shift+D)
+// ---------------------------------------------------------------------
+
+function toggleDebugPanel() {
+    const panel = document.getElementById('debugPanel');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) {
+        updateDebugPanel();
+    }
+}
+
+function updateDebugPanel() {
+    const content = document.getElementById('debugContent');
+    if (!content) return;
+    const lines = [
+        `APP_VERSION: ${APP_VERSION}`,
+        `taskCounter: ${state.taskCounter}`,
+        `isFirebaseLoaded: ${state.isFirebaseLoaded}`,
+        `tasks.length: ${state.tasks.length}`,
+        `--- tasks ---`,
+        ...state.tasks.map((t, i) => `  [${i}] id=${t.id} status=${t.status} text="${t.text}"`),
+        `--- DOM elements ---`
+    ];
+    ['no-iniciado', 'en-proceso', 'finalizado'].forEach(status => {
+        const el = document.getElementById(status);
+        const count = el ? el.querySelectorAll('[data-task-id]').length : -1;
+        lines.push(`  ${status}: DOM=${count} state=${state.tasks.filter(t => t.status === status).length}`);
+    });
+    content.textContent = lines.join('\n');
 }
 
 // ---------------------------------------------------------------------
