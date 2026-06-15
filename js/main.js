@@ -75,7 +75,7 @@ function renderLabelFilter() {
     allBtn.className = `px-3 py-1 rounded-full text-xs font-medium transition-all duration-150
         ${activeLabelFilter === null
             ? 'bg-blue-600 text-white shadow-sm'
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`;
     allBtn.textContent = 'Todas';
     allBtn.addEventListener('click', () => applyLabelFilter(null));
     container.appendChild(allBtn);
@@ -86,7 +86,7 @@ function renderLabelFilter() {
     noneBtn.className = `px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 inline-flex items-center gap-1
         ${activeLabelFilter === '__none__'
             ? 'bg-gray-600 text-white shadow-sm'
-            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`;
+            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`;
     noneBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg> Sin';
     noneBtn.title = 'Tareas sin etiqueta';
     noneBtn.addEventListener('click', () => applyLabelFilter('__none__'));
@@ -99,7 +99,7 @@ function renderLabelFilter() {
         btn.className = `px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 inline-flex items-center gap-1.5
             ${isActive
                 ? `${label.bg} ${label.text} shadow-sm ring-1 ${label.border}`
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`;
         btn.innerHTML = `<span class="w-2 h-2 ${label.dot} rounded-full"></span>${label.name}`;
         btn.addEventListener('click', () => applyLabelFilter(label.id));
         container.appendChild(btn);
@@ -140,7 +140,7 @@ function showManageLabelsDialog() {
     modal.style.maxWidth = '32rem';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 mb-4';
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4';
     title.textContent = 'Gestionar Etiquetas';
 
     // --- Lista de etiquetas existentes ---
@@ -159,14 +159,14 @@ function showManageLabelsDialog() {
         }
         all.forEach(label => {
             const item = document.createElement('div');
-            item.className = 'flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100';
+            item.className = 'flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 dark:border-gray-600';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2';
             const dot = document.createElement('span');
             dot.className = `w-3 h-3 ${label.dot} rounded-full flex-shrink-0`;
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'text-sm font-medium text-gray-700';
+            nameSpan.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
             nameSpan.textContent = label.name;
             left.appendChild(dot);
             left.appendChild(nameSpan);
@@ -174,7 +174,7 @@ function showManageLabelsDialog() {
             const right = document.createElement('div');
             if (label.predefined) {
                 const badge = document.createElement('span');
-                badge.className = 'text-xs text-gray-400 italic';
+                badge.className = 'text-xs text-gray-400 dark:text-gray-500 italic';
                 badge.textContent = 'predefinida';
                 right.appendChild(badge);
             } else {
@@ -201,20 +201,20 @@ function showManageLabelsDialog() {
 
     // --- Formulario para añadir nueva etiqueta ---
     const formDiv = document.createElement('div');
-    formDiv.className = 'border-t border-gray-100 pt-4';
+    formDiv.className = 'border-t border-gray-100 dark:border-gray-600 pt-4';
 
     const formTitle = document.createElement('p');
-    formTitle.className = 'text-sm font-medium text-gray-700 mb-3';
+    formTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-3';
     formTitle.textContent = 'Añadir nueva etiqueta:';
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.placeholder = 'Nombre de la etiqueta';
-    nameInput.className = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3';
+    nameInput.className = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3';
 
     // Selector de color
     const colorLabel = document.createElement('p');
-    colorLabel.className = 'text-xs text-gray-500 mb-2';
+    colorLabel.className = 'text-xs text-gray-500 dark:text-gray-400 mb-2';
     colorLabel.textContent = 'Color:';
 
     const colorPicker = document.createElement('div');
@@ -250,13 +250,16 @@ function showManageLabelsDialog() {
 
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
-    addBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors';
+    addBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors';
     addBtn.textContent = 'Añadir etiqueta';
 
     function handleAdd() {
         const name = nameInput.value.trim();
         if (!name) {
-    nameInput.addEventListener('input', () => nameInput.classList.remove('border-red-400'));
+            nameInput.classList.add('border-red-400');
+            nameInput.focus();
+            return;
+        }
         addCustomLabel(name, selectedColorId);
         nameInput.value = '';
         renderLabelList();
@@ -281,7 +284,7 @@ function showManageLabelsDialog() {
     // --- Botón cerrar ---
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'mt-4 w-full px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors';
+    closeBtn.className = 'mt-4 w-full px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors';
     closeBtn.textContent = 'Cerrar';
     closeBtn.addEventListener('click', () => overlay.remove());
 
@@ -338,7 +341,7 @@ function renderLabelPicker() {
     const noneBtn = document.createElement('button');
     noneBtn.type = 'button';
     noneBtn.className = `w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150 text-xs font-bold
-        ${selectedLabelId === null ? 'bg-gray-200 text-gray-500 ring-2 ring-gray-400 ring-offset-1' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`;
+        ${selectedLabelId === null ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 ring-2 ring-gray-400 dark:ring-gray-500 ring-offset-1' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`;
     noneBtn.title = 'Sin etiqueta';
     noneBtn.textContent = '×';
     noneBtn.dataset.labelId = '';
@@ -709,6 +712,16 @@ function setupAuth() {
         registerPass.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                // Si es Enter en el primer password, saltar al confirm
+                document.getElementById('registerPasswordConfirm')?.focus();
+            }
+        });
+    }
+    const registerPassConfirm = document.getElementById('registerPasswordConfirm');
+    if (registerPassConfirm) {
+        registerPassConfirm.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
                 handleRegister();
             }
         });
@@ -733,11 +746,41 @@ function setupAuth() {
     }
 }
 
+// ---------------------------------------------------------------------
+// Loading spinner for auth operations
+// ---------------------------------------------------------------------
+
+/**
+ * Muestra/oculta el spinner de carga para login o registro.
+ * @param {'login'|'register'} type
+ * @param {boolean} loading
+ */
+function setAuthLoading(type, loading) {
+    const normalBtn = document.getElementById(type === 'login' ? 'loginBtn' : 'registerBtn');
+    const loadingBtn = document.getElementById(type === 'login' ? 'loginBtnLoading' : 'registerBtnLoading');
+    const inputs = type === 'login'
+        ? ['loginUsername', 'loginPassword']
+        : ['registerUsername', 'registerPassword', 'registerPasswordConfirm'];
+
+    normalBtn.classList.toggle('hidden', loading);
+    loadingBtn.classList.toggle('hidden', !loading);
+
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = loading;
+    });
+}
+
 async function handleLogin() {
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
 
+    setAuthLoading('login', true);
+
     const result = await loginUser(username, password);
+
+    setAuthLoading('login', false);
+
     if (result.success) {
         showMessage(`✅ Bienvenido, ${result.user.username}`, 'success');
         document.getElementById('loginUsername').value = '';
@@ -755,12 +798,28 @@ async function handleLogin() {
 async function handleRegister() {
     const username = document.getElementById('registerUsername').value.trim();
     const password = document.getElementById('registerPassword').value;
+    const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+
+    // Validar que las contraseñas coincidan
+    if (password !== passwordConfirm) {
+        showMessage('❌ Las contraseñas no coinciden', 'error');
+        document.getElementById('registerPassword').value = '';
+        document.getElementById('registerPasswordConfirm').value = '';
+        document.getElementById('registerPassword').focus();
+        return;
+    }
+
+    setAuthLoading('register', true);
 
     const result = await registerUser(username, password);
+
+    setAuthLoading('register', false);
+
     if (result.success) {
         showMessage(`✅ Cuenta creada. ¡Bienvenido, ${result.user.username}!`, 'success');
         document.getElementById('registerUsername').value = '';
         document.getElementById('registerPassword').value = '';
+        document.getElementById('registerPasswordConfirm').value = '';
         const manageUsersBtn = document.getElementById('manageUsersBtn');
         if (manageUsersBtn) {
             manageUsersBtn.classList.toggle('hidden', !result.user.isAdmin);
@@ -792,7 +851,7 @@ async function showManageUsersDialog() {
     modal.style.maxWidth = '32rem';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 mb-4';
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4';
     title.textContent = '👥 Gestionar Usuarios';
 
     const list = document.createElement('div');
@@ -812,21 +871,21 @@ async function showManageUsersDialog() {
 
         users.forEach(u => {
             const item = document.createElement('div');
-            item.className = 'flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100';
+            item.className = 'flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 dark:border-gray-600';
 
             const left = document.createElement('div');
             left.className = 'flex items-center gap-2';
             const dot = document.createElement('span');
             dot.className = `w-2.5 h-2.5 rounded-full ${u.isAdmin ? 'bg-yellow-500' : 'bg-green-400'}`;
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'text-sm font-medium text-gray-700';
+            nameSpan.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
             nameSpan.textContent = u.username;
             left.appendChild(dot);
             left.appendChild(nameSpan);
 
             if (u.isAdmin) {
                 const badge = document.createElement('span');
-                badge.className = 'text-xs text-yellow-600 font-medium ml-1';
+                badge.className = 'text-xs text-yellow-600 dark:text-yellow-400 font-medium ml-1';
                 badge.textContent = 'Admin';
                 left.appendChild(badge);
             }
@@ -868,7 +927,7 @@ async function showManageUsersDialog() {
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'mt-2 w-full px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors';
+    closeBtn.className = 'mt-2 w-full px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors';
     closeBtn.textContent = 'Cerrar';
 
     modal.appendChild(title);
@@ -896,6 +955,71 @@ async function showManageUsersDialog() {
 
     overlay.addEventListener('click', e => {
         if (e.target === overlay) closeDialog();
+    });
+}
+
+// ---------------------------------------------------------------------
+// Dark mode
+// ---------------------------------------------------------------------
+
+const DARK_MODE_KEY = 'kanban-dark-mode';
+
+/**
+ * Inicializa el modo oscuro:
+ * 1. Respeta la preferencia del usuario guardada en localStorage.
+ * 2. Si no hay preferencia, usa la preferencia del sistema (prefers-color-scheme).
+ * 3. Conecta los botones de toggle en el header y la barra de usuario.
+ */
+function initDarkMode() {
+    const stored = localStorage.getItem(DARK_MODE_KEY);
+    let isDark;
+    if (stored !== null) {
+        isDark = stored === 'true';
+    } else {
+        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    if (isDark) {
+        document.documentElement.classList.add('dark');
+    }
+
+    // Sincronizar ambos botones de toggle
+    function updateToggleButtons() {
+        const isDark = document.documentElement.classList.contains('dark');
+        const toggle1 = document.getElementById('darkModeToggle');
+        const toggle2 = document.getElementById('darkModeToggle2');
+        const icon = isDark ? '☀️' : '🌙';
+        const title = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+        if (toggle1) { toggle1.textContent = icon; toggle1.title = title; }
+        if (toggle2) { toggle2.textContent = icon; toggle2.title = title; }
+    }
+
+    function toggleDarkMode() {
+        const willBeDark = !document.documentElement.classList.contains('dark');
+        document.documentElement.classList.toggle('dark', willBeDark);
+        localStorage.setItem(DARK_MODE_KEY, willBeDark);
+        // Actualizar theme-color meta tag
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.content = willBeDark ? '#111827' : '#3b82f6';
+        }
+        updateToggleButtons();
+    }
+
+    const toggle1 = document.getElementById('darkModeToggle');
+    const toggle2 = document.getElementById('darkModeToggle2');
+
+    updateToggleButtons();
+
+    if (toggle1) toggle1.addEventListener('click', toggleDarkMode);
+    if (toggle2) toggle2.addEventListener('click', toggleDarkMode);
+
+    // Escuchar cambios en la preferencia del sistema
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (localStorage.getItem(DARK_MODE_KEY) === null) {
+            // Solo cambia automáticamente si el usuario no ha elegido explícitamente
+            document.documentElement.classList.toggle('dark', e.matches);
+        }
     });
 }
 
@@ -951,29 +1075,32 @@ function initApp() {
     renderLabelPicker();
     renderLabelFilter();
 
-    // 5. Auth: login, register y UI de usuario
+    // 5. Dark mode (temprano para evitar flicker)
+    initDarkMode();
+
+    // 6. Auth: login, register y UI de usuario
     setupAuth();
 
-    // 6. Atajos de teclado
+    // 7. Atajos de teclado
     setupKeyboardShortcuts();
 
     // 7. Confirmación al salir si hay cambios sin guardar
     setupBeforeUnload();
 
-    // 8. PWA
+    // 9. PWA
     setupInstallButton();
     registerServiceWorker();
 
-    // 9. Detectar modo PWA
+    // 10. Detectar modo PWA
     if (isRunningAsPWA()) {
         document.documentElement.classList.add('pwa-mode');
         console.log('Ejecutando como PWA');
     }
 
-    // 10. Mostrar el nombre del tablero activo (si hay uno guardado)
+    // 11. Mostrar el nombre del tablero activo (si hay uno guardado)
     updateCurrentBoardDisplay();
 
-    // 11. Pintar contadores iniciales (todo a 0 hasta que llegue Firebase)
+    // 12. Pintar contadores iniciales (todo a 0 hasta que llegue Firebase)
     updateCounts();
 }
 
