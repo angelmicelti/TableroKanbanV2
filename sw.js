@@ -60,7 +60,8 @@ self.addEventListener('activate', function(event) {
 //   - Las navegaciones offline reciben index.html como fallback para que
 //     la PWA siga funcionando sin red.
 self.addEventListener('fetch', function(event) {
-  if (event.request.method !== 'GET') {
+  // Ignorar peticiones que no sean http/https (como chrome-extension://)
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
     return;
   }
 
