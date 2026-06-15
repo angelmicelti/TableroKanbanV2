@@ -1300,7 +1300,7 @@ function updateDebugPanel() {
         `isFirebaseLoaded: ${state.isFirebaseLoaded}`,
         `tasks.length: ${state.tasks.length}`,
         `--- tasks ---`,
-        ...state.tasks.map((t, i) => `  [${i}] id=${t.id} status=${t.status} text="${t.text}"`),
+        ...state.tasks.map((t, i) => `  [${i}] id=${t.id} status=${t.status} label="${t.label || ''}" text="${t.text}"`),
         `--- DOM elements ---`
     ];
     ['no-iniciado', 'en-proceso', 'finalizado'].forEach(status => {

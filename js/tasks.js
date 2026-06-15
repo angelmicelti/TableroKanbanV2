@@ -205,18 +205,26 @@ export function addTask(text, labelId) {
  * Cambia la etiqueta de una tarea a la siguiente del ciclo.
  */
 export function cycleTaskLabel(taskId) {
+    console.log('=== cycleTaskLabel INICIO ===', { taskId, tasksBefore: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
+
     // Limpiar posibles duplicados antes de operar
     state.tasks = deduplicateTasks(state.tasks);
 
     const task = state.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {
+        console.warn('cycleTaskLabel: tarea no encontrada', taskId);
+        return;
+    }
     const next = getNextLabel(task.label);
+    console.log('cycleTaskLabel: tarea encontrada', { id: task.id, text: task.text, oldLabel: task.label, newLabel: next?.id || null, nextLabelName: next?.name || null });
     task.label = next ? next.id : null;
     const el = document.querySelector(`[data-task-id="${taskId}"]`);
+    console.log('cycleTaskLabel: elemento encontrado para eliminar', el ? el.className : 'null');
     if (el) el.remove();
     renderTask(task);
     markDirty();
     saveTasksToFirebase();
+    console.log('=== cycleTaskLabel FIN ===', { tasksAfter: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
 }
 
 export function deleteTask(taskId) {
