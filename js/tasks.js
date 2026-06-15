@@ -80,9 +80,23 @@ export function updateCounts() {
  * sobrescribiendo `state.tasks` y causando contadores incorrectos.
  * Invoca `onLoaded` cuando los datos están listos, para que
  * `main.js` pueda reactivar el formulario en ese momento.
+ *
+ * NOTA: Contiene un guard (`_firebaseLoaded`) para ignorar callbacks
+ * duplicados de `once('value')`. Firebase puede llamar al callback
+ * múltiples veces (caché local + servidor) en ciertas condiciones,
+ * y sin este guard el DOM acumularía elementos duplicados.
  */
 export function setupTasksListener(onLoaded) {
+    let _firebaseLoaded = false;
+
     getTasksRef().once('value', snapshot => {
+        // Ignorar llamadas duplicadas del callback
+        if (_firebaseLoaded) {
+            console.warn('⚠️ setupTasksListener: callback duplicado ignorado');
+            return;
+        }
+        _firebaseLoaded = true;
+
         const data = snapshot.val();
 
         // Limpiar DOM de las tres columnas
@@ -419,5 +433,11 @@ export function renderTask(task) {
     `;
 
     const column = document.getElementById(task.status);
-    if (column) column.appendChild(taskElement);
+    if (column) {
+        // Eliminar cualquier elemento existente con el mismo data-task-id
+        // (prevenir duplicados en el DOM si renderTask se llama múltiples veces)
+        const existing = column.querySelector(`[data-task-id="${task.id}"]`);
+        if (existing) existing.remove();
+        column.appendChild(taskElement);
+    }
 }
