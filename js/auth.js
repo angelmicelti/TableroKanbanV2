@@ -197,6 +197,84 @@ export async function getAllUsers() {
 }
 
 /**
+ * Cambia la contraseña del usuario actual verificando la contraseña actual.
+ * @param {string} username
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function changePassword(username, currentPassword, newPassword) {
+    if (!username || !currentPassword || !newPassword) {
+        return { success: false, error: 'Todos los campos son obligatorios.' };
+    }
+    if (newPassword.length < 4) {
+        return { success: false, error: 'La nueva contraseña debe tener al menos 4 caracteres.' };
+    }
+
+    const ref = getUsersRef();
+    if (!ref) return { success: false, error: 'Firebase no está conectado.' };
+
+    try {
+        const allUsers = await fetchAllUsers();
+        const userRecord = allUsers[username];
+
+        if (!userRecord) {
+            return { success: false, error: 'Usuario no encontrado.' };
+        }
+
+        // Verificar contraseña actual
+        const currentHash = await hashPassword(currentPassword);
+        if (userRecord.password !== currentHash) {
+            return { success: false, error: 'La contraseña actual no es correcta.' };
+        }
+
+        // Hashear y guardar nueva contraseña
+        const newHash = await hashPassword(newPassword);
+        await ref.child(username).child('password').set(newHash);
+
+        return { success: true };
+    } catch (err) {
+        console.error('Error al cambiar contraseña:', err);
+        return { success: false, error: 'Error de conexión con Firebase.' };
+    }
+}
+
+/**
+ * Cambia la contraseña de cualquier usuario (solo administradores).
+ * No requiere la contraseña actual.
+ * @param {string} username
+ * @param {string} newPassword
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function adminSetPassword(username, newPassword) {
+    const current = getCurrentUser();
+    if (!current || !current.isAdmin) {
+        return { success: false, error: 'Solo los administradores pueden cambiar contraseñas de otros usuarios.' };
+    }
+    if (!newPassword || newPassword.length < 4) {
+        return { success: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
+    }
+
+    const ref = getUsersRef();
+    if (!ref) return { success: false, error: 'Firebase no está conectado.' };
+
+    try {
+        const allUsers = await fetchAllUsers();
+        if (!allUsers[username]) {
+            return { success: false, error: 'Usuario no encontrado.' };
+        }
+
+        const newHash = await hashPassword(newPassword);
+        await ref.child(username).child('password').set(newHash);
+
+        return { success: true };
+    } catch (err) {
+        console.error('Error al cambiar contraseña:', err);
+        return { success: false, error: 'Error de conexión con Firebase.' };
+    }
+}
+
+/**
  * Elimina un usuario (solo admin, no se puede eliminar a sí mismo).
  * @param {string} username
  * @returns {Promise<{success: boolean, error?: string}>}
