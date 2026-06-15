@@ -5,7 +5,7 @@
 // aplica event delegation para los botones dinámicos de las tareas.
 
 import { state }                  from './state.js';
-import { VALID_STATUSES, FIREBASE_LOAD_TIMEOUT_MS } from './config.js';
+import { VALID_STATUSES, FIREBASE_LOAD_TIMEOUT_MS, APP_VERSION } from './config.js';
 import { showMessage, toggleSection, showConfirm } from './utils.js';
 import {
     initFirebase,
@@ -1288,7 +1288,28 @@ function setupBeforeUnload() {
 // Bootstrap
 // ---------------------------------------------------------------------
 
+/**
+ * Verifica si la versión de la app ha cambiado. Si es la primera carga
+ * con esta versión, forzamos una recarga completa de la página para
+ * que el Service Worker sirva los archivos nuevos y Firebase SDK
+ * reinicie su conexión desde cero (descartando la caché en memoria).
+ */
+function checkAppVersion() {
+    const versionKey = 'kanban-app-version';
+    const stored = localStorage.getItem(versionKey);
+    if (stored !== APP_VERSION) {
+        console.log('Versión actualizada (' + stored + ' → ' + APP_VERSION + '). Recargando...');
+        localStorage.setItem(versionKey, APP_VERSION);
+        // Recargar para que el SW sirva los nuevos archivos y Firebase
+        // obtenga datos frescos del servidor
+        location.reload();
+    }
+}
+
 function initApp() {
+    // 0. Verificar versión de la app
+    checkAppVersion();
+
     // 1. Inicializar Firebase y monitorizar conexión
     initFirebase();
     monitorConnection(renderConnectionStatus);
