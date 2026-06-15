@@ -14,12 +14,26 @@ import { markDirty } from './boards.js';
 // ---------------------------------------------------------------------
 
 /**
+ * Deduplica el array de tareas por ID, manteniendo la primera ocurrencia.
+ */
+function deduplicateTasks(tasks) {
+    const seen = new Set();
+    return tasks.filter(t => {
+        if (!t || seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+    });
+}
+
+/**
  * Persiste el estado actual en Firebase.
  * Es un no-op hasta que `isFirebaseLoaded` es `true` para no machacar
  * datos remotos con el estado local vacío.
+ * Deduplica las tareas antes de guardar para evitar duplicados.
  */
 export function saveTasksToFirebase() {
     if (!state.isFirebaseLoaded) return;
+    state.tasks = deduplicateTasks(state.tasks);
     getTasksRef().set(state.tasks);
     getCounterRef().set(state.taskCounter);
 }
@@ -70,7 +84,10 @@ export function setupTasksListener(onLoaded) {
         document.getElementById('finalizado').innerHTML  = '';
 
         if (data) {
-            state.tasks = data;
+            // Deduplicar al recibir datos de Firebase para evitar
+            // que condiciones de carrera (múltiples escrituras rápidas
+            // seguidas) generen tareas duplicadas.
+            state.tasks = deduplicateTasks(data);
             if (state.tasks.length > 0) {
                 state.taskCounter = Math.max(...state.tasks.map(t => t.id), state.taskCounter);
             }
