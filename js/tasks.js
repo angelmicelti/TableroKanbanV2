@@ -68,14 +68,15 @@ export function updateCounts() {
 // ---------------------------------------------------------------------
 
 /**
- * Suscribe un listener al nodo `kanban/tasks` de Firebase.
- * Cada vez que cambian los datos, sincroniza `state.tasks` y re-pinta
- * las tres columnas. Invoca `onLoaded` la primera vez que se reciben
- * datos (o se confirma que no hay), para que `main.js` pueda
- * reactivar el formulario en ese momento.
+ * Carga inicial de tareas desde Firebase (una sola vez).
+ * No usa `on('value')` persistente para evitar el feedback loop
+ * donde Firebase devuelve los datos que acabamos de escribir,
+ * sobrescribiendo `state.tasks` y causando contadores incorrectos.
+ * Invoca `onLoaded` cuando los datos están listos, para que
+ * `main.js` pueda reactivar el formulario en ese momento.
  */
 export function setupTasksListener(onLoaded) {
-    getTasksRef().on('value', snapshot => {
+    getTasksRef().once('value', snapshot => {
         const data = snapshot.val();
 
         // Limpiar DOM de las tres columnas
@@ -84,10 +85,7 @@ export function setupTasksListener(onLoaded) {
         document.getElementById('finalizado').innerHTML  = '';
 
         if (data) {
-            // Deduplicar al recibir datos de Firebase para evitar
-            // que condiciones de carrera (múltiples escrituras rápidas
-            // seguidas) generen tareas duplicadas.
-            state.tasks = deduplicateTasks(data);
+            state.tasks = data;
             if (state.tasks.length > 0) {
                 state.taskCounter = Math.max(...state.tasks.map(t => t.id), state.taskCounter);
             }
