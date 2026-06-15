@@ -53,6 +53,12 @@ export function updateCounts() {
         if (counts[task.status] !== undefined) counts[task.status]++;
     });
 
+    // Debug: si los contadores se disparan, guardamos el estado para diagnóstico
+    if (state.tasks.length > 0 && (counts['en-proceso'] > state.tasks.length || counts['finalizado'] > state.tasks.length)) {
+        console.warn('⚠️ Contadores inconsistentes:', { total: state.tasks.length, ...counts });
+        window.__debugState = JSON.parse(JSON.stringify(state.tasks));
+    }
+
     document.getElementById('count-no-iniciado').textContent = counts['no-iniciado'];
     document.getElementById('count-en-proceso').textContent  = counts['en-proceso'];
     document.getElementById('count-finalizado').textContent  = counts['finalizado'];
