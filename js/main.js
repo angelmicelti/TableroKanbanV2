@@ -546,8 +546,13 @@ function setupDragAndDrop() {
 
             const indicator = document.createElement('div');
             indicator.className = 'drag-indicator h-0.5 bg-blue-500 rounded-full my-1 transition-all';
-            if (insertBefore && column.contains(insertBefore)) {
-                column.insertBefore(indicator, insertBefore);
+            if (insertBefore && insertBefore.parentNode === column) {
+                try {
+                    column.insertBefore(indicator, insertBefore);
+                } catch (e) {
+                    console.warn('insertBefore dragover fallback:', e.message);
+                    column.appendChild(indicator);
+                }
             } else {
                 column.appendChild(indicator);
             }
@@ -585,8 +590,13 @@ function setupDragAndDrop() {
             if (taskElement) {
                 taskElement.remove();
                 taskElement.classList.remove('opacity-30');
-                if (insertBeforeNode && column.contains(insertBeforeNode)) {
-                    column.insertBefore(taskElement, insertBeforeNode);
+                if (insertBeforeNode && insertBeforeNode.parentNode === column) {
+                    try {
+                        column.insertBefore(taskElement, insertBeforeNode);
+                    } catch (e) {
+                        console.warn('insertBefore drop fallback:', e.message);
+                        column.appendChild(taskElement);
+                    }
                 } else {
                     column.appendChild(taskElement);
                 }
