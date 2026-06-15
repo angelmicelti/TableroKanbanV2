@@ -13,13 +13,17 @@
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="theme-color" content="#3b82f6">
 
-    <!-- Apple Touch Icons (solo se referencian tamaños de icono que existen) -->
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192x192.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
     <!-- Safari Pinned Tab -->
-    <link rel="mask-icon" href="icons/icon-192x192.png" color="#3b82f6">
+    <link rel="mask-icon" href="icons/favicon.svg" color="#3b82f6">
 
     <!-- Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -43,6 +47,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tablero Kanban</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -59,12 +68,19 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
+        .dark .task-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
         .column {
             min-height: 400px;
         }
         .drag-over {
             background-color: #f0f9ff;
             border: 2px dashed #3b82f6;
+        }
+        .dark .drag-over {
+            background-color: #1e3a5f;
+            border-color: #60a5fa;
         }
         .move-buttons {
             display: none;
@@ -122,9 +138,17 @@
             background-color: #dcfce7;
             color: #166534;
         }
+        .dark .firebase-status.connected {
+            background-color: #064e3b;
+            color: #6ee7b7;
+        }
         .firebase-status.disconnected {
             background-color: #fef9c3;
             color: #854d0e;
+        }
+        .dark .firebase-status.disconnected {
+            background-color: #451a03;
+            color: #fbbf24;
         }
 
         .collapsible-section {
@@ -166,6 +190,10 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             animation: app-modal-slide-up 0.2s ease-out;
         }
+        .dark .app-modal {
+            background: #1f2937;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
         @keyframes app-modal-fade-in {
             from { opacity: 0; }
             to   { opacity: 1; }
@@ -175,83 +203,136 @@
             to   { transform: translateY(0);    opacity: 1; }
         }
 
+        /* Authentication Overlay: transición fade in/out */
+        #authOverlay {
+            transition: opacity 0.35s ease, visibility 0.35s ease;
+        }
+        .dark #authOverlay {
+            background: linear-gradient(to bottom right, #111827, #1e3a5f);
+        }
+        #authOverlay.auth-overlay--hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #appContainer {
+            transition: opacity 0.35s ease;
+        }
+        #appContainer.app-container--dimmed {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+
+
         /* Accesibilidad: respetar preferencia de movimiento reducido */
         @media (prefers-reduced-motion: reduce) {
             .app-modal-overlay,
-            .app-modal {
+            .app-modal,
+            #authOverlay,
+            #appContainer {
                 animation: none;
+                transition: none;
             }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 md:p-6">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
-        <div class="text-center mb-8 mobile-margin">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2 mobile-text">📋 Tablero Kanban</h1>
-            <p class="text-gray-600">Organiza tus tareas de manera eficiente</p>
-            <div id="firebaseStatusBar" class="mt-2 flex justify-center">
+        <div class="text-center mb-8 mobile-margin relative">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2 mobile-text">📋 Tablero Kanban</h1>
+            <p class="text-gray-600 dark:text-gray-400">Organiza tus tareas de manera eficiente</p>
+            <div id="firebaseStatusBar" class="mt-2 flex justify-center items-center gap-3">
                 <span id="firebaseStatus" class="firebase-status disconnected">⏳ Conectando a Firebase...</span>
+                <button id="darkModeToggle" type="button"
+                        class="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 px-2 py-1 rounded transition-colors"
+                        title="Cambiar modo oscuro">
+                    🌙
+                </button>
             </div>
         </div>
 
-        <!-- Authentication Bar -->
-        <div id="authContainer" class="bg-white rounded-lg shadow-md p-4 mb-6 mobile-padding">
-            <div class="flex flex-col md:flex-row gap-4">
+        <!-- Authentication Overlay (fullscreen, shown when NOT logged in) -->
+        <!-- Visible by default: actúa como splash hasta que JS determine la sesión -->
+        <div id="authOverlay" class="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl dark:shadow-2xl dark:shadow-black/50 p-8 w-full max-w-md">
+                <!-- Logo / Header -->
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-3">📋</div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Tablero Kanban</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Inicia sesión para gestionar tus tareas</p>
+                </div>
+
                 <!-- Login Form -->
-                <div id="loginForm" class="flex-1">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-2">🔑 Iniciar Sesión</h3>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="loginUsername" placeholder="Usuario"
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="loginForm">
+                    <div class="space-y-3">
+                        <input type="text" id="loginUsername" placeholder="Nombre de usuario"
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                         <input type="password" id="loginPassword" placeholder="Contraseña"
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                         <button id="loginBtn" type="button"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-                            Entrar
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+                            Iniciar Sesión
+                        </button>
+                        <button id="loginBtnLoading" type="button"
+                                class="w-full bg-blue-400 text-white py-3 rounded-lg text-sm font-semibold cursor-not-allowed hidden items-center justify-center gap-2">
+                            <span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            Iniciando sesión…
                         </button>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1.5">
+                    <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">
                         ¿No tienes cuenta?
-                        <a href="#" id="showRegisterLink" class="text-blue-600 hover:underline">Regístrate</a>
+                        <a href="#" id="showRegisterLink" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Crear cuenta</a>
                     </p>
                 </div>
 
                 <!-- Register Form -->
-                <div id="registerForm" class="flex-1 hidden">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-2">📝 Crear Cuenta</h3>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="registerUsername" placeholder="Nuevo usuario"
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="registerForm" class="hidden">
+                    <div class="space-y-3">
+                        <input type="text" id="registerUsername" placeholder="Nombre de usuario"
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                         <input type="password" id="registerPassword" placeholder="Contraseña"
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                        <input type="password" id="registerPasswordConfirm" placeholder="Repetir contraseña"
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                         <button id="registerBtn" type="button"
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-                            Crear
+                                class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+                            Crear Cuenta
+                        </button>
+                        <button id="registerBtnLoading" type="button"
+                                class="w-full bg-green-400 text-white py-3 rounded-lg text-sm font-semibold cursor-not-allowed hidden items-center justify-center gap-2">
+                            <span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            Creando cuenta…
                         </button>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1.5">
+                    <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-4">
                         ¿Ya tienes cuenta?
-                        <a href="#" id="showLoginLink" class="text-blue-600 hover:underline">Inicia sesión</a>
+                        <a href="#" id="showLoginLink" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Iniciar sesión</a>
                     </p>
                 </div>
             </div>
         </div>
 
         <!-- User Info Bar (shown when logged in) -->
-        <div id="userInfo" class="bg-white rounded-lg shadow-md p-3 mb-6 mobile-padding hidden">
+        <div id="userInfo" class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-3 mb-6 mobile-padding hidden">
             <div class="flex items-center justify-between">
-                <div id="userBadge" class="flex items-center gap-2 text-sm text-gray-700">
+                <div id="userBadge" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <!-- Generated by JS -->
                 </div>
                 <div class="flex items-center gap-2">
+                    <button id="darkModeToggle2" type="button"
+                            class="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 px-2 py-1 rounded transition-colors"
+                            title="Cambiar modo oscuro">
+                        🌙
+                    </button>
                     <button id="manageUsersBtn" type="button"
-                            class="text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors hidden"
+                            class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors hidden"
                             data-action="manage-users">
                         👥 Usuarios
                     </button>
                     <button id="logoutBtn" type="button"
-                            class="text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors">
+                            class="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition-colors">
                         🚪 Cerrar sesión
                     </button>
                 </div>
@@ -259,13 +340,13 @@
         </div>
 
         <!-- Main container -->
-        <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-8 mobile-padding">
+        <div id="appContainer" class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 md:p-6 mb-8 mobile-padding">
             <!-- Board Management Bar -->
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-4 border-b border-gray-100 gap-3">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-4 border-b border-gray-100 dark:border-gray-700 gap-3">
                 <div class="flex items-center gap-2">
                     <span class="text-lg">📋</span>
-                    <span class="font-semibold text-gray-800">Tablero:</span>
-                    <span id="currentBoardName" class="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">Sin nombre</span>
+                    <span class="font-semibold text-gray-800 dark:text-gray-200">Tablero:</span>
+                    <span id="currentBoardName" class="text-sm bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full font-medium">Sin nombre</span>
                     <span id="boardDirtyIndicator" class="w-2 h-2 bg-orange-400 rounded-full hidden flex-shrink-0" title="Cambios sin guardar"></span>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -296,8 +377,8 @@
             <!-- Save/Import Tasks Section -->
             <div class="collapsible-section mb-4 collapsed">
                 <button class="section-toggle w-full flex justify-between items-center text-left mb-2" data-action="toggle-section" data-section-id="save-import">
-                    <h3 class="text-sm font-medium text-gray-700">💾 Guardar e Importar Tareas</h3>
-                    <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">💾 Guardar e Importar Tareas</h3>
+                    <svg class="toggle-icon w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
@@ -337,14 +418,14 @@
             
             <!-- Add Task Form -->
             <div>
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">➕ Agregar Nueva Tarea</h2>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">➕ Agregar Nueva Tarea</h2>
                 <div class="task-form-container">
                     <form id="taskForm" class="flex flex-col md:flex-row gap-4">
                         <input 
                             type="text" 
                             id="taskInput" 
                             placeholder="Escribe tu tarea aquí..." 
-                            class="task-input-mobile md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="task-input-mobile md:flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
                         >
                         <button 
@@ -356,12 +437,12 @@
                     </form>
                     <!-- Label Picker -->
                     <div class="flex items-center gap-2 mt-3 flex-wrap">
-                        <span class="text-xs font-medium text-gray-500">Etiqueta:</span>
+                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Etiqueta:</span>
                         <div id="labelPicker" class="flex gap-1.5">
                             <!-- Los círculos de colores se generan desde JS -->
                         </div>
                         <button data-action="manage-labels"
-                                class="text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors ml-1"
+                                class="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors ml-1"
                                 title="Gestionar etiquetas personalizadas">
                             ✏️ Editar
                         </button>
@@ -371,9 +452,9 @@
         </div>
 
         <!-- Label Filter Bar -->
-        <div class="bg-white rounded-lg shadow-md p-4 mb-6 mobile-padding">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-4 mb-6 mobile-padding">
             <div class="flex items-center flex-wrap gap-2">
-                <span class="text-sm font-medium text-gray-600 mr-1">🔍 Filtrar:</span>
+                <span class="text-sm font-medium text-gray-600 dark:text-gray-400 mr-1">🔍 Filtrar:</span>
                 <div id="labelFilter" class="flex items-center flex-wrap gap-1.5">
                     <!-- Generado desde JS -->
                 </div>
@@ -383,11 +464,11 @@
         <!-- Kanban Board -->
         <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- No Iniciado Column -->
-            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="no-iniciado">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 column" data-status="no-iniciado">
                 <div class="flex items-center mb-4">
                     <div class="w-4 h-4 bg-gray-400 rounded-full mr-3"></div>
-                    <h3 class="text-lg font-semibold text-gray-700">No Iniciado</h3>
-                    <span class="ml-auto bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm" id="count-no-iniciado">0</span>
+                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">No Iniciado</h3>
+                    <span class="ml-auto bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full text-sm" id="count-no-iniciado">0</span>
                 </div>
                 <div id="no-iniciado" class="space-y-3 min-h-[300px]" data-drop-zone="no-iniciado">
                     <!-- Tasks will be added here -->
@@ -395,11 +476,11 @@
             </div>
 
             <!-- En Proceso Column -->
-            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="en-proceso">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 column" data-status="en-proceso">
                 <div class="flex items-center mb-4">
                     <div class="w-4 h-4 bg-yellow-400 rounded-full mr-3"></div>
-                    <h3 class="text-lg font-semibold text-gray-700">En Proceso</h3>
-                    <span class="ml-auto bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-sm" id="count-en-proceso">0</span>
+                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">En Proceso</h3>
+                    <span class="ml-auto bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-300 px-2 py-1 rounded-full text-sm" id="count-en-proceso">0</span>
                 </div>
                 <div id="en-proceso" class="space-y-3 min-h-[300px]" data-drop-zone="en-proceso">
                     <!-- Tasks will be added here -->
@@ -407,11 +488,11 @@
             </div>
 
             <!-- Finalizado Column -->
-            <div class="bg-white rounded-lg shadow-md p-6 column" data-status="finalizado">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6 column" data-status="finalizado">
                 <div class="flex items-center mb-4">
                     <div class="w-4 h-4 bg-green-400 rounded-full mr-3"></div>
-                    <h3 class="text-lg font-semibold text-gray-700">Finalizado</h3>
-                    <span class="ml-auto bg-green-100 text-green-600 px-2 py-1 rounded-full text-sm" id="count-finalizado">0</span>
+                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Finalizado</h3>
+                    <span class="ml-auto bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 px-2 py-1 rounded-full text-sm" id="count-finalizado">0</span>
                 </div>
                 <div id="finalizado" class="space-y-3 min-h-[300px]" data-drop-zone="finalizado">
                     <!-- Tasks will be added here -->
@@ -420,24 +501,24 @@
         </div>
 
         <!-- Statistics -->
-        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">📊 Estadísticas</h3>
+        <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-black/30 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">📊 Estadísticas</h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-blue-600" id="total-tasks">0</div>
-                    <div class="text-sm text-gray-600">Total de Tareas</div>
+                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="total-tasks">0</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Total de Tareas</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-gray-600" id="pending-tasks">0</div>
-                    <div class="text-sm text-gray-600">Pendientes</div>
+                    <div class="text-2xl font-bold text-gray-600 dark:text-gray-300" id="pending-tasks">0</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Pendientes</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-yellow-600" id="progress-tasks">0</div>
-                    <div class="text-sm text-gray-600">En Progreso</div>
+                    <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400" id="progress-tasks">0</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">En Progreso</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold text-green-600" id="completed-tasks">0</div>
-                    <div class="text-sm text-gray-600">Completadas</div>
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="completed-tasks">0</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Completadas</div>
                 </div>
             </div>
         </div>
