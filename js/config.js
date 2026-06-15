@@ -138,3 +138,11 @@ export const EXPORT_VERSION = '2.0-firebase';
 // Tiempo máximo (ms) que esperaremos a Firebase antes de reactivar el
 // formulario en modo local-only.
 export const FIREBASE_LOAD_TIMEOUT_MS = 10000;
+
+// =====================================================================
+// APP VERSION
+// =====================================================================
+// Se incrementa en cada despliegue importante. Si la versión almacenada
+// en localStorage no coincide, borramos IndexedDB (caché de Firebase SDK)
+// y recargamos para forzar datos frescos desde el servidor.
+export const APP_VERSION = '18';
