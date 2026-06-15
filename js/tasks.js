@@ -91,7 +91,7 @@ export function setupTasksListener(onLoaded) {
         document.getElementById('finalizado').innerHTML  = '';
 
         if (data) {
-            state.tasks = data;
+            state.tasks = deduplicateTasks(data);
             if (state.tasks.length > 0) {
                 state.taskCounter = Math.max(...state.tasks.map(t => t.id), state.taskCounter);
             }
