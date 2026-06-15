@@ -257,6 +257,10 @@ export function cycleTaskLabel(taskId) {
     renderTask(task);
     markDirty();
     saveTasksToFirebase();
+    // Ejecutar updateCounts() para que cleanupDomDuplicates() elimine
+    // cualquier elemento fantasma duplicado que haya quedado en el DOM
+    // de sesiones anteriores (el famoso bug del "7").
+    updateCounts();
     console.log('=== cycleTaskLabel FIN ===', { tasksAfter: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
 
     _cycleInProgress = false;
