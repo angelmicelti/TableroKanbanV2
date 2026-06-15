@@ -1332,19 +1332,48 @@ function setupBeforeUnload() {
 
 /**
  * Verifica si la versión de la app ha cambiado. Si es la primera carga
- * con esta versión, forzamos una recarga completa de la página para
- * que el Service Worker sirva los archivos nuevos y Firebase SDK
- * reinicie su conexión desde cero (descartando la caché en memoria).
+ * con esta versión, borramos TODAS las bases de datos IndexedDB del
+ * origen (donde Firebase SDK cachea datos) y forzamos una recarga.
+ * Esto se ejecuta ANTES de initFirebase(), por lo que no hay
+ * conexiones abiertas que impidan el borrado.
  */
 function checkAppVersion() {
     const versionKey = 'kanban-app-version';
     const stored = localStorage.getItem(versionKey);
     if (stored !== APP_VERSION) {
-        console.log('Versión actualizada (' + stored + ' → ' + APP_VERSION + '). Recargando...');
+        console.log('Versión actualizada (' + stored + ' → ' + APP_VERSION + '). Limpiando cachés...');
         localStorage.setItem(versionKey, APP_VERSION);
-        // Recargar para que el SW sirva los nuevos archivos y Firebase
-        // obtenga datos frescos del servidor
-        location.reload();
+
+        // Borrar IndexedDB (caché local de Firebase SDK)
+        // Esto se ejecuta antes de initFirebase(), sin conexiones abiertas
+        try {
+            const delPromises = [];
+            if (window.indexedDB && indexedDB.databases) {
+                indexedDB.databases().then(dbs => {
+                    (dbs || []).forEach(db => {
+                        if (db.name && !db.name.startsWith('_pwa')) {
+                            console.log('Eliminando IndexedDB:', db.name);
+                            delPromises.push(new Promise(resolve => {
+                                const req = indexedDB.deleteDatabase(db.name);
+                                req.onsuccess = resolve;
+                                req.onerror = resolve;
+                                req.onblocked = resolve;
+                            }));
+                        }
+                    });
+                    Promise.all(delPromises).then(() => {
+                        console.log('IndexedDB limpiado. Recargando...');
+                        location.reload();
+                    }).catch(() => location.reload());
+                }).catch(() => location.reload());
+            } else {
+                // Fallback: solo recargar (no podemos borrar IndexedDB)
+                location.reload();
+            }
+        } catch (e) {
+            console.warn('Error al limpiar IndexedDB:', e);
+            location.reload();
+        }
     }
 }
 
