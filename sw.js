@@ -14,7 +14,9 @@ const urlsToCache = [
   './js/firebase-service.js',
   './js/tasks.js',
   './js/import-export.js',
-  './js/pwa.js'
+  './js/pwa.js',
+  './js/boards.js',
+  './js/auth.js'
 ];
 
 // Install event - cache core files
