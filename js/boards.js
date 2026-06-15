@@ -199,16 +199,16 @@ export function showSaveBoardDialog(currentName, onSave) {
     modal.className = 'app-modal';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 mb-2';
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2';
     title.textContent = 'Guardar Tablero';
 
     const message = document.createElement('p');
-    message.className = 'text-gray-600 mb-4';
+    message.className = 'text-gray-600 dark:text-gray-400 mb-4';
     message.textContent = 'Introduce un nombre para guardar el tablero actual:';
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4';
+    input.className = 'w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4';
     input.placeholder = 'Nombre del tablero';
     input.value = currentName || '';
 
@@ -222,7 +222,7 @@ export function showSaveBoardDialog(currentName, onSave) {
 
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
-    saveBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
+    saveBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
     saveBtn.textContent = 'Guardar';
 
     buttonsRow.appendChild(cancelBtn);
@@ -285,16 +285,16 @@ function showRenameBoardDialog(currentName, onRename) {
     modal.className = 'app-modal';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 mb-2';
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2';
     title.textContent = 'Renombrar Tablero';
 
     const message = document.createElement('p');
-    message.className = 'text-gray-600 mb-4';
+    message.className = 'text-gray-600 dark:text-gray-400 mb-4';
     message.textContent = 'Introduce el nuevo nombre para el tablero:';
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4';
+    input.className = 'w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4';
     input.placeholder = 'Nuevo nombre del tablero';
     input.value = currentName || '';
 
@@ -308,7 +308,7 @@ function showRenameBoardDialog(currentName, onRename) {
 
     const renameBtn = document.createElement('button');
     renameBtn.type = 'button';
-    renameBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
+    renameBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
     renameBtn.textContent = 'Renombrar';
 
     buttonsRow.appendChild(cancelBtn);
@@ -374,17 +374,17 @@ export function showOpenBoardDialog(onSelect, onDelete) {
     modal.style.maxWidth = '32rem';
 
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 mb-2';
+    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2';
     title.textContent = 'Abrir Tablero';
 
     if (boards.length === 0) {
         const emptyMsg = document.createElement('p');
-        emptyMsg.className = 'text-gray-500 text-center py-6';
+        emptyMsg.className = 'text-gray-500 dark:text-gray-400 text-center py-6';
         emptyMsg.textContent = 'No hay tableros guardados. Guarda un tablero primero.';
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
-        closeBtn.className = 'mt-4 px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors w-full focus:outline-none focus:ring-2 focus:ring-gray-400';
+        closeBtn.className = 'mt-4 px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors w-full focus:outline-none focus:ring-2 focus:ring-gray-400';
         closeBtn.textContent = 'Cerrar';
         closeBtn.addEventListener('click', () => overlay.remove());
 
@@ -419,17 +419,17 @@ export function showOpenBoardDialog(onSelect, onDelete) {
 
     sorted.forEach(board => {
         const item = document.createElement('div');
-        item.className = 'flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all';
+        item.className = 'flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer transition-all';
 
         const info = document.createElement('div');
         info.className = 'flex-1 min-w-0';
 
         const nameEl = document.createElement('div');
-        nameEl.className = 'font-medium text-gray-800 truncate';
+        nameEl.className = 'font-medium text-gray-800 dark:text-gray-200 truncate';
         nameEl.textContent = board.name;
 
         const meta = document.createElement('div');
-        meta.className = 'text-xs text-gray-500 mt-1';
+        meta.className = 'text-xs text-gray-500 dark:text-gray-400 mt-1';
         meta.textContent = `${board.taskCount} tareas · ${formatDate(board.savedAt)}`;
 
         info.appendChild(nameEl);
@@ -440,7 +440,7 @@ export function showOpenBoardDialog(onSelect, onDelete) {
 
         const renameBtn = document.createElement('button');
         renameBtn.type = 'button';
-        renameBtn.className = 'p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400';
+        renameBtn.className = 'p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400';
         renameBtn.title = 'Renombrar tablero';
         renameBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path></svg>';
 
@@ -461,7 +461,7 @@ export function showOpenBoardDialog(onSelect, onDelete) {
 
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
-        deleteBtn.className = 'p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-400';
+        deleteBtn.className = 'p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-400';
         deleteBtn.title = 'Eliminar tablero';
         deleteBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>';
 
@@ -503,7 +503,7 @@ export function showOpenBoardDialog(onSelect, onDelete) {
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400';
+    closeBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400';
     closeBtn.textContent = 'Cancelar';
     closeBtn.addEventListener('click', () => {
         removeKeyDown();
