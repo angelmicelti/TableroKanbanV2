@@ -124,40 +124,34 @@ export function updateCounts() {
 // Listener de tareas (Firebase -> estado local -> DOM)
 // ---------------------------------------------------------------------
 
-// Guard a nivel de módulo: solo permitimos UNA carga de datos desde
-// Firebase en toda la vida de la página. Firebase Realtime Database
-// puede re-disparar eventos tras `set()` incluso con `once('value')`
-// (comportamiento observado en el SDK compat). Este guard, combinado
-// con la forma Promise de `once('value')`, asegura que solo la primera
-// resolución se procese.
 let _dataLoaded = false;
 
 /**
- * Carga inicial de tareas desde Firebase (una sola vez).
- * Usa la forma Promise de `once('value')` que resuelve UNA SOLA
- * PROMESA, a diferencia de la forma callback que Firebase podría
- * re-disparar internamente. El guard `_dataLoaded` impide cualquier
- * procesamiento duplicado incluso si la Promise resolviera más de una vez.
+ * Carga inicial de tareas desde Firebase REST API (una sola vez).
+ * NO usa el SDK de Firebase (`once('value')` / `on('value')`) porque
+ * se ha observado que el SDK puede re-disparar eventos tras `set()`,
+ * causando una re-renderización completa del DOM que intercambia
+ * títulos y etiquetas entre tarjetas.
+ *
+ * Usamos `fetch()` a la REST API de Firebase, que es una simple
+ * petición HTTP. No hay sistema de eventos, no hay listeners, no
+ * hay re-disparos. Solo se ejecuta UNA vez.
  *
  * Invoca `onLoaded` cuando los datos están listos, para que
  * `main.js` pueda reactivar el formulario en ese momento.
  */
-export function setupTasksListener(onLoaded) {
+export async function setupTasksListener(onLoaded) {
     if (_dataLoaded) {
         console.warn('setupTasksListener: ya ejecutado, ignorando');
         return;
     }
+    _dataLoaded = true;
 
-    getTasksRef().once('value').then(snapshot => {
-        // Si ya se procesaron datos, salir inmediatamente
-        if (_dataLoaded) {
-            console.warn('setupTasksListener: datos ya cargados, ignorando snapshot duplicado');
-            return;
-        }
-        _dataLoaded = true;
-
-        console.log('setupTasksListener: cargando datos desde Firebase');
-        const data = snapshot.val();
+    try {
+        console.log('setupTasksListener: cargando datos desde REST API');
+        const url = getTasksRef().toString() + '.json';
+        const response = await fetch(url);
+        const data = await response.json();
 
         // Limpiar DOM de las tres columnas
         document.getElementById('no-iniciado').innerHTML = '';
@@ -177,13 +171,12 @@ export function setupTasksListener(onLoaded) {
         updateCounts();
         state.isFirebaseLoaded = true;
         if (onLoaded) onLoaded();
-    }).catch(err => {
-        console.error('Error al cargar tareas desde Firebase:', err);
+    } catch (err) {
+        console.error('Error al cargar tareas desde REST API:', err);
         // Aún si hay error, marcamos como cargado para no bloquear
-        _dataLoaded = true;
         state.isFirebaseLoaded = true;
         if (onLoaded) onLoaded();
-    });
+    }
 }
 
 // ---------------------------------------------------------------------
