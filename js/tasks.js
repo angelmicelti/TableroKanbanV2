@@ -42,7 +42,55 @@ export function saveTasksToFirebase() {
 // Contadores y estadísticas
 // ---------------------------------------------------------------------
 
+/**
+ * Elimina elementos DOM duplicados (mismo data-task-id) de todas las
+ * columnas y asegura que cada tarea tenga su elemento en la columna
+ * correcta según `state.tasks`. Se ejecuta en cada `updateCounts()`
+ * para garantizar que el DOM siempre refleje fielmente el estado.
+ */
+function cleanupDomDuplicates() {
+    // 1. Eliminar duplicados exactos (mismo ID en cualquier columna,
+    //    mantener solo el primero encontrado en orden de documento)
+    const seen = new Map();
+    document.querySelectorAll('[data-task-id]').forEach(el => {
+        const id = el.dataset.taskId;
+        if (seen.has(id)) {
+            el.remove();
+        } else {
+            seen.set(id, el);
+        }
+    });
+
+    // 2. Verificar que cada elemento superviviente esté en la columna
+    //    correcta según state.tasks. Si no, re-renderizar.
+    state.tasks.forEach(task => {
+        const el = seen.get(String(task.id));
+        if (!el) {
+            // No hay elemento en el DOM — renderizarlo
+            renderTask(task);
+            return;
+        }
+        const correctCol = document.getElementById(task.status);
+        if (!correctCol || !correctCol.contains(el)) {
+            // Elemento en columna incorrecta — eliminarlo y re-renderizar
+            el.remove();
+            renderTask(task);
+        }
+    });
+
+    // 3. Eliminar elementos huérfanos (task ID que ya no existe en state)
+    const activeIds = new Set(state.tasks.map(t => String(t.id)));
+    document.querySelectorAll('[data-task-id]').forEach(el => {
+        if (!activeIds.has(el.dataset.taskId)) {
+            el.remove();
+        }
+    });
+}
+
 export function updateCounts() {
+    // Limpiar duplicados del DOM antes de contar
+    cleanupDomDuplicates();
+
     const counts = {
         'no-iniciado': 0,
         'en-proceso':  0,
