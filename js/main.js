@@ -55,6 +55,7 @@ import {
     deleteBoard,
     getCurrentBoardInfo,
     setCurrentBoardInfo,
+    markDirty,
     markClean,
     getIsDirty
 } from './boards.js';
@@ -545,7 +546,7 @@ function setupDragAndDrop() {
 
             const indicator = document.createElement('div');
             indicator.className = 'drag-indicator h-0.5 bg-blue-500 rounded-full my-1 transition-all';
-            if (insertBefore) {
+            if (insertBefore && column.contains(insertBefore)) {
                 column.insertBefore(indicator, insertBefore);
             } else {
                 column.appendChild(indicator);
