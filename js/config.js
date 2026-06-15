@@ -4,6 +4,12 @@
 // Credenciales del proyecto Firebase. Son públicas (se envían al cliente)
 // por lo que la seguridad debe reforzarse con Firebase Realtime Database
 // Rules en la consola de Firebase.
+
+// Namespace único para esta app dentro de la Realtime Database.
+// Todas las rutas (tareas, contador, usuarios) cuelgan de aquí para
+// evitar colisiones con otras apps que compartan la misma base de datos.
+export const APP_NAMESPACE = 'tablero_kanban_v2';
+
 export const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBfjYWT2Ex9V4x6ec9Ko1VyJxK_sdhsDpA",
     authDomain: "ledemisorreceptor.firebaseapp.com",
