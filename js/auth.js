@@ -7,6 +7,7 @@
 // La sesión persiste en localStorage.
 
 import { getDB } from './firebase-service.js';
+import { APP_NAMESPACE } from './config.js';
 import { showMessage, escapeHtml } from './utils.js';
 
 const SESSION_KEY = 'kanban-current-user';
@@ -54,7 +55,7 @@ function clearSession() {
 function getUsersRef() {
     const db = getDB();
     if (!db) return null;
-    return db.ref('users');
+    return db.ref(APP_NAMESPACE + '/users');
 }
 
 /**
