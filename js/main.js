@@ -115,7 +115,7 @@ function applyLabelFilter(labelId) {
     activeLabelFilter = labelId;
     renderLabelFilter();
 
-    document.querySelectorAll('[data-task-id]').forEach(el => {
+    document.querySelectorAll('.task-card[data-task-id]').forEach(el => {
         const taskLabel = el.dataset.label || '';
         let visible = false;
         if (labelId === null) {
