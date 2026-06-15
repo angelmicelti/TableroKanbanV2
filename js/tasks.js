@@ -250,16 +250,18 @@ export function cycleTaskLabel(taskId) {
     const next = getNextLabel(task.label);
     console.log('cycleTaskLabel: tarea encontrada', { id: task.id, text: task.text, oldLabel: task.label, newLabel: next?.id || null, nextLabelName: next?.name || null });
     task.label = next ? next.id : null;
-    // Usar .task-card cualificado para eliminar SOLO la tarjeta, no hijos
-    const el = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
-    console.log('cycleTaskLabel: elemento encontrado para eliminar', el ? el.className : 'null');
-    if (el) el.remove();
+    // Eliminar TODOS los elementos .task-card con este ID (incluyendo
+    // posibles fantasmas de versiones anteriores). Luego renderTask
+    // creará UNO nuevo y solo ese quedará.
+    const ghosts = document.querySelectorAll(`.task-card[data-task-id="${taskId}"]`);
+    console.log('cycleTaskLabel: eliminando', ghosts.length, 'elementos fantasma');
+    ghosts.forEach(el => el.remove());
     renderTask(task);
     markDirty();
     saveTasksToFirebase();
-    // Ejecutar updateCounts() para que cleanupDomDuplicates() elimine
-    // cualquier elemento fantasma duplicado que haya quedado en el DOM
-    // de sesiones anteriores (el famoso bug del "7").
+    // Ejecutar updateCounts() para que cleanupDomDuplicates() limpie
+    // posibles fantasmas de OTRAS tareas (no de la actual, que ya
+    // fue limpiada por querySelectorAll).
     updateCounts();
     console.log('=== cycleTaskLabel FIN ===', { tasksAfter: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
 
