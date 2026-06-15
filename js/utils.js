@@ -19,16 +19,15 @@ export function escapeHtml(text) {
  * Construye el DOM con `createElement` + `textContent` para que sea
  * seguro aunque algún caller pase contenido controlado por el usuario.
  */
-export function showMessage(message, type = 'info') {
-    const colors = {
-        success: 'bg-green-100 border-green-400 text-green-700',
-        error:   'bg-red-100 border-red-400 text-red-700',
-        info:    'bg-blue-100 border-blue-400 text-blue-700'
+export function showMessage(message, type = 'info') {        const colors = {
+        success: 'bg-green-100 border-green-400 text-green-700 dark:bg-green-900/70 dark:border-green-600 dark:text-green-300',
+        error:   'bg-red-100 border-red-400 text-red-700 dark:bg-red-900/70 dark:border-red-600 dark:text-red-300',
+        info:    'bg-blue-100 border-blue-400 text-blue-700 dark:bg-blue-900/70 dark:border-blue-600 dark:text-blue-300'
     };
 
     const messageDiv = document.createElement('div');
     messageDiv.className =
-        `fixed top-4 right-4 px-4 py-3 rounded border-l-4 ${colors[type] || colors.info} shadow-lg z-50 max-w-sm`;
+        `fixed top-4 right-4 px-4 py-3 rounded border-l-4 ${colors[type] || colors.info} shadow-lg dark:shadow-black/40 z-50 max-w-sm`;
 
     const row = document.createElement('div');
     row.className = 'flex justify-between items-center';
@@ -119,7 +118,7 @@ export function showConfirm({
         if (title) {
             const titleEl = document.createElement('h3');
             titleEl.id = titleId;
-            titleEl.className = 'text-lg font-semibold text-gray-800 mb-2';
+            titleEl.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2';
             titleEl.textContent = title;
             modal.appendChild(titleEl);
         }
@@ -127,7 +126,7 @@ export function showConfirm({
         if (message) {
             const messageEl = document.createElement('p');
             messageEl.id = messageId;
-            messageEl.className = 'text-gray-600 mb-6';
+            messageEl.className = 'text-gray-600 dark:text-gray-400 mb-6';
             messageEl.textContent = message;
             modal.appendChild(messageEl);
         }
@@ -137,14 +136,14 @@ export function showConfirm({
 
         const cancelBtn = document.createElement('button');
         cancelBtn.type = 'button';
-        cancelBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400';
+        cancelBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400';
         cancelBtn.textContent = cancelText;
 
         const confirmBtn = document.createElement('button');
         confirmBtn.type = 'button';
         confirmBtn.className = danger
-            ? 'px-4 py-2 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500'
-            : 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
+            ? 'px-4 py-2 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500'
+            : 'px-4 py-2 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
         confirmBtn.textContent = confirmText;
 
         buttonsRow.appendChild(cancelBtn);
