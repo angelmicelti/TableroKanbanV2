@@ -210,7 +210,7 @@ export function editTask(taskId) {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = currentText;
-    input.className = 'w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+    input.className = 'w-full px-2 py-1 border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
 
     // Usar textContent para limpiar de forma segura
     taskTextElement.textContent = '';
@@ -324,7 +324,7 @@ export function renderTask(task) {
     }
 
     const taskElement = document.createElement('div');
-    taskElement.className = 'task-card bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-move';
+    taskElement.className = 'task-card bg-gray-50 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-lg p-4 cursor-move';
     taskElement.draggable = true;
     taskElement.dataset.taskId = task.id;
     taskElement.dataset.label = task.label || '';
@@ -353,7 +353,7 @@ export function renderTask(task) {
         <div class="flex items-start gap-2 mb-2">
             <div class="flex-1 min-w-0">
                 ${labelHtml}
-                <h4 class="font-medium text-gray-800 mt-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                <h4 class="font-medium text-gray-800 dark:text-gray-200 mt-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 px-2 py-1 rounded"
                     data-dblclick-edit
                     data-task-id="${task.id}"
                     title="Doble clic para editar"
@@ -374,7 +374,7 @@ export function renderTask(task) {
                 </button>
             </div>
         </div>
-        <div class="text-xs text-gray-500 mb-2">Creado: ${safeCreatedAt}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">Creado: ${safeCreatedAt}</div>
         <div class="move-buttons gap-1 justify-center">
             ${task.status !== 'no-iniciado' ? `<button data-action="move-task" data-task-id="${task.id}" data-target-status="no-iniciado" class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs">\u2190 Enviar a <b><i>No Iniciado</b></i></button>` : ''}
             ${task.status !== 'en-proceso'  ? `<button data-action="move-task" data-task-id="${task.id}" data-target-status="en-proceso"  class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">Enviar a <b><i>En Proceso</b></i></button>` : ''}
