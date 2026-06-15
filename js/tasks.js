@@ -124,30 +124,36 @@ export function updateCounts() {
 // Listener de tareas (Firebase -> estado local -> DOM)
 // ---------------------------------------------------------------------
 
+// Guard a nivel de módulo para asegurar que setupTasksListener solo
+// ejecute su callback UNA vez, incluso si `once('value')` de Firebase
+// volviera a dispararse tras un `set()` (comportamiento observado en
+// el SDK compat). Al estar fuera de la función, persiste entre
+// potenciales llamadas duplicadas a setupTasksListener.
+let _firebaseListenerAttached = false;
+
 /**
  * Carga inicial de tareas desde Firebase (una sola vez).
- * No usa `on('value')` persistente para evitar el feedback loop
- * donde Firebase devuelve los datos que acabamos de escribir,
- * sobrescribiendo `state.tasks` y causando contadores incorrectos.
+ * Usa un guard a nivel de módulo y `on('value')` con `off('value')`
+ * explícito para asegurar que el callback se ejecute UNA SOLA VEZ
+ * en toda la vida de la página, incluso si Firebase re-dispara el
+ * evento tras `saveTasksToFirebase().set()`.
+ *
  * Invoca `onLoaded` cuando los datos están listos, para que
  * `main.js` pueda reactivar el formulario en ese momento.
- *
- * NOTA: Contiene un guard (`_firebaseLoaded`) para ignorar callbacks
- * duplicados de `once('value')`. Firebase puede llamar al callback
- * múltiples veces (caché local + servidor) en ciertas condiciones,
- * y sin este guard el DOM acumularía elementos duplicados.
  */
 export function setupTasksListener(onLoaded) {
-    let _firebaseLoaded = false;
+    // Si ya se ejecutó una vez, ignorar por completo
+    if (_firebaseListenerAttached) {
+        console.warn('⚠️ setupTasksListener: segunda llamada ignorada');
+        return;
+    }
+    _firebaseListenerAttached = true;
 
-    getTasksRef().once('value', snapshot => {
-        // Ignorar llamadas duplicadas del callback
-        if (_firebaseLoaded) {
-            console.warn('⚠️ setupTasksListener: callback duplicado ignorado');
-            return;
-        }
-        _firebaseLoaded = true;
+    const callback = snapshot => {
+        // Desvincularnos inmediatamente para que no vuelva a dispararse
+        getTasksRef().off('value', callback);
 
+        console.log('setupTasksListener: cargando datos desde Firebase');
         const data = snapshot.val();
 
         // Limpiar DOM de las tres columnas
@@ -168,7 +174,9 @@ export function setupTasksListener(onLoaded) {
         updateCounts();
         state.isFirebaseLoaded = true;
         if (onLoaded) onLoaded();
-    });
+    };
+
+    getTasksRef().on('value', callback);
 }
 
 // ---------------------------------------------------------------------
