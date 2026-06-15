@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { VALID_STATUSES, EXPORT_VERSION } from './config.js';
 import { showMessage } from './utils.js';
 import { renderTask, clearAllTasksLocal, updateCounts, saveTasksToFirebase } from './tasks.js';
+import { markDirty } from './boards.js';
 
 /**
  * Genera un Blob con las tareas y dispara la descarga.
@@ -64,7 +65,8 @@ export function importTasks(event) {
                         id: state.taskCounter,
                         text: String(taskData.text),
                         status: taskData.status,
-                        createdAt: taskData.createdAt || new Date().toLocaleString('es-ES')
+                        createdAt: taskData.createdAt || new Date().toLocaleString('es-ES'),
+                        label: taskData.label || null
                     };
                     state.tasks.push(task);
                     renderTask(task);
@@ -73,6 +75,7 @@ export function importTasks(event) {
             });
 
             updateCounts();
+            markDirty();
             saveTasksToFirebase();
             showMessage(`\u2705 ${importedCount} tareas importadas correctamente`, 'success');
 
