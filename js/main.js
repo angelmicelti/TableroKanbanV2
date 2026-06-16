@@ -38,8 +38,10 @@ import {
     isCurrentUserAdmin,
     getAllUsers,
     deleteUser,
+    renameUser,
     changePassword,
     adminSetPassword,
+    updateUserRole,
     renderAuthUI
 } from './auth.js';
 import {
@@ -882,72 +884,182 @@ async function showManageUsersDialog() {
 
     const modal = document.createElement('div');
     modal.className = 'app-modal';
-    modal.style.maxWidth = '32rem';
+    modal.style.maxWidth = '36rem';
+    modal.style.width = '100%';
 
-    const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4';
-    title.textContent = '👥 Gestionar Usuarios';
+    // ── Header ──────────────────────────────────────────────────────────
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between mb-4';
 
-    const list = document.createElement('div');
-    list.className = 'space-y-2 mb-4 max-h-64 overflow-y-auto';
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100';
+    titleEl.textContent = '👥 Gestionar Usuarios';
+
+    const closeTopBtn = document.createElement('button');
+    closeTopBtn.type = 'button';
+    closeTopBtn.className = 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xl leading-none';
+    closeTopBtn.textContent = '×';
+    closeTopBtn.title = 'Cerrar';
+
+    header.appendChild(titleEl);
+    header.appendChild(closeTopBtn);
+    modal.appendChild(header);
+
+    // ── Tabs ─────────────────────────────────────────────────────────────
+    const tabBar = document.createElement('div');
+    tabBar.className = 'flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-600';
+
+    const tabs = [
+        { id: 'tab-list',   label: '📋 Usuarios' },
+        { id: 'tab-add',    label: '➕ Nuevo usuario' }
+    ];
+
+    // Non-admins only see their own password change
+    const isAdmin = isCurrentUserAdmin();
+
+    function makeTab(tab, isActive) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = tab.id;
+        btn.className = `px-4 py-2 text-sm font-medium transition-colors rounded-t-lg border-b-2 -mb-px
+            ${isActive
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'}`;
+        btn.textContent = tab.label;
+        return btn;
+    }
+
+    let activeTab = 'list';
+    const tabBtns = {};
+    tabs.forEach((t, i) => {
+        const btn = makeTab(t, i === 0);
+        tabBtns[t.id] = btn;
+        tabBar.appendChild(btn);
+    });
+
+    if (!isAdmin) tabBar.querySelector('#tab-add').style.display = 'none';
+    modal.appendChild(tabBar);
+
+    // ── Panels ───────────────────────────────────────────────────────────
+    const panels = {};
+
+    // ---- Panel: lista de usuarios ----
+    const listPanel = document.createElement('div');
+    listPanel.id = 'panel-list';
+    panels['list'] = listPanel;
+
+    const userListContainer = document.createElement('div');
+    userListContainer.className = 'space-y-2 max-h-72 overflow-y-auto pr-1';
+    listPanel.appendChild(userListContainer);
 
     async function renderUserList() {
-        list.innerHTML = '';
-        const users = await getAllUsers();
+        userListContainer.innerHTML = '';
 
-        if (users.length === 0) {
+        const users = isAdmin ? await getAllUsers() : [];
+        const currentUser = getCurrentUser();
+
+        // Si no es admin, mostrar solo la fila del propio usuario
+        const displayUsers = isAdmin ? users : (currentUser ? [{ username: currentUser.username, isAdmin: currentUser.isAdmin, createdAt: '' }] : []);
+
+        if (displayUsers.length === 0) {
             const empty = document.createElement('p');
-            empty.className = 'text-gray-400 text-sm text-center py-4';
+            empty.className = 'text-gray-400 dark:text-gray-500 text-sm text-center py-6';
             empty.textContent = 'No hay usuarios.';
-            list.appendChild(empty);
+            userListContainer.appendChild(empty);
             return;
         }
 
-        users.forEach(u => {
+        displayUsers.forEach(u => {
             const item = document.createElement('div');
-            item.className = 'flex items-center justify-between py-2 px-3 rounded-lg border border-gray-100 dark:border-gray-600';
+            item.className = 'flex items-center justify-between py-2.5 px-3 rounded-lg border border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 gap-2';
 
+            // Left: avatar dot + name + badge
             const left = document.createElement('div');
-            left.className = 'flex items-center gap-2';
+            left.className = 'flex items-center gap-2 min-w-0';
+
             const dot = document.createElement('span');
-            dot.className = `w-2.5 h-2.5 rounded-full ${u.isAdmin ? 'bg-yellow-500' : 'bg-green-400'}`;
+            dot.className = `w-2.5 h-2.5 rounded-full flex-shrink-0 ${u.isAdmin ? 'bg-yellow-500' : 'bg-green-400'}`;
+
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'text-sm font-medium text-gray-700 dark:text-gray-300';
+            nameSpan.className = 'text-sm font-medium text-gray-700 dark:text-gray-200 truncate';
             nameSpan.textContent = u.username;
+
             left.appendChild(dot);
             left.appendChild(nameSpan);
 
             if (u.isAdmin) {
                 const badge = document.createElement('span');
-                badge.className = 'text-xs text-yellow-600 dark:text-yellow-400 font-medium ml-1';
+                badge.className = 'text-xs bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0';
                 badge.textContent = 'Admin';
                 left.appendChild(badge);
             }
 
+            // Right: action buttons
             const right = document.createElement('div');
-            right.className = 'flex items-center gap-1';
+            right.className = 'flex items-center gap-1 flex-shrink-0';
 
-            // Botón cambiar contraseña (disponible para todos los usuarios)
-            const changePwdBtn = document.createElement('button');
-            changePwdBtn.type = 'button';
-            changePwdBtn.className = 'text-xs text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors';
-            changePwdBtn.textContent = '🔑';
-            changePwdBtn.title = 'Cambiar contraseña';
-            changePwdBtn.addEventListener('click', () => {
-                const isOwn = u.username === getCurrentUser()?.username;
+            // Botón cambiar contraseña
+            const pwdBtn = document.createElement('button');
+            pwdBtn.type = 'button';
+            pwdBtn.title = 'Cambiar contraseña';
+            pwdBtn.className = 'inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors';
+            pwdBtn.innerHTML = '🔑 <span class="hidden sm:inline">Contraseña</span>';
+            pwdBtn.addEventListener('click', () => {
+                const isOwn = u.username === currentUser?.username;
                 showChangePasswordDialog(u.username, isOwn);
             });
-            right.appendChild(changePwdBtn);
+            right.appendChild(pwdBtn);
 
-            if (!u.isAdmin) {
+            // Botón cambiar rol (solo admin, no sobre sí mismo)
+            if (isAdmin && u.username !== currentUser?.username) {
+                const roleBtn = document.createElement('button');
+                roleBtn.type = 'button';
+                roleBtn.title = u.isAdmin ? 'Hacer Usuario' : 'Hacer Administrador';
+                roleBtn.className = 'inline-flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 px-2 py-1 rounded transition-colors';
+                roleBtn.innerHTML = u.isAdmin ? '👤 <span class="hidden sm:inline">Usuario</span>' : '🛡️ <span class="hidden sm:inline">Admin</span>';
+                roleBtn.addEventListener('click', async () => {
+                    const nextRole = !u.isAdmin;
+                    const confirmed = await showConfirm({
+                        title: nextRole ? 'Hacer Administrador' : 'Quitar Administrador',
+                        message: `¿Deseas cambiar el rol de "${u.username}" a ${nextRole ? 'Administrador' : 'Usuario'}?`,
+                        confirmText: 'Confirmar',
+                        cancelText: 'Cancelar'
+                    });
+                    if (confirmed) {
+                        const result = await updateUserRole(u.username, nextRole);
+                        if (result.success) {
+                            showMessage(`✅ Rol de "${u.username}" actualizado`, 'success');
+                            renderUserList();
+                        } else {
+                            showMessage(`❌ ${result.error}`, 'error');
+                        }
+                    }
+                });
+                right.appendChild(roleBtn);
+            }
+
+            // Botón renombrar (solo admin, no sobre sí mismo)
+            if (isAdmin && u.username !== currentUser?.username) {
+                const renameBtn = document.createElement('button');
+                renameBtn.type = 'button';
+                renameBtn.title = 'Renombrar usuario';
+                renameBtn.className = 'inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 px-2 py-1 rounded transition-colors';
+                renameBtn.innerHTML = '✏️ <span class="hidden sm:inline">Renombrar</span>';
+                renameBtn.addEventListener('click', () => showRenameUserDialog(u.username, renderUserList));
+                right.appendChild(renameBtn);
+            }
+
+            // Botón eliminar (solo admin, no sobre sí mismo ni otros admin)
+            if (isAdmin && !u.isAdmin && u.username !== currentUser?.username) {
                 const delBtn = document.createElement('button');
                 delBtn.type = 'button';
-                delBtn.className = 'text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition-colors';
-                delBtn.textContent = 'Eliminar';
+                delBtn.title = 'Eliminar usuario';
+                delBtn.className = 'inline-flex items-center gap-1 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition-colors';
+                delBtn.innerHTML = '🗑️ <span class="hidden sm:inline">Eliminar</span>';
                 delBtn.addEventListener('click', async () => {
                     const confirmed = await showConfirm({
                         title: 'Eliminar usuario',
-                        message: `¿Eliminar al usuario "${u.username}"? No se podrá deshacer.`,
+                        message: `¿Eliminar al usuario "${u.username}"? Esta acción no se puede deshacer.`,
                         confirmText: 'Eliminar',
                         cancelText: 'Cancelar',
                         danger: true
@@ -955,8 +1067,8 @@ async function showManageUsersDialog() {
                     if (confirmed) {
                         const result = await deleteUser(u.username);
                         if (result.success) {
-                            renderUserList();
                             showMessage(`🗑️ Usuario "${u.username}" eliminado`, 'success');
+                            renderUserList();
                         } else {
                             showMessage(`❌ ${result.error}`, 'error');
                         }
@@ -967,44 +1079,219 @@ async function showManageUsersDialog() {
 
             item.appendChild(left);
             item.appendChild(right);
-            list.appendChild(item);
+            userListContainer.appendChild(item);
         });
     }
 
     await renderUserList();
+    modal.appendChild(listPanel);
 
+    // ---- Panel: nuevo usuario ----
+    const addPanel = document.createElement('div');
+    addPanel.id = 'panel-add';
+    addPanel.style.display = 'none';
+    panels['add'] = addPanel;
+
+    const addTitle = document.createElement('p');
+    addTitle.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-3';
+    addTitle.textContent = 'Crear nuevo usuario:';
+    addPanel.appendChild(addTitle);
+
+    function mkInput(placeholder, type = 'text') {
+        const inp = document.createElement('input');
+        inp.type = type;
+        inp.placeholder = placeholder;
+        inp.className = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3';
+        return inp;
+    }
+
+    const newUsernameInput  = mkInput('Nombre de usuario');
+    const newPwdInput       = mkInput('Contraseña', 'password');
+    const newPwdConfInput   = mkInput('Repetir contraseña', 'password');
+
+    const addErrMsg = document.createElement('p');
+    addErrMsg.className = 'text-red-500 dark:text-red-400 text-xs mb-3 hidden';
+
+    const addUserBtn = document.createElement('button');
+    addUserBtn.type = 'button';
+    addUserBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors';
+    addUserBtn.textContent = '✅ Crear usuario';
+
+    async function handleAddUser() {
+        addErrMsg.classList.add('hidden');
+        const username = newUsernameInput.value.trim();
+        const pwd      = newPwdInput.value;
+        const pwdConf  = newPwdConfInput.value;
+
+        if (!username) { addErrMsg.textContent = 'El nombre de usuario es obligatorio.'; addErrMsg.classList.remove('hidden'); newUsernameInput.focus(); return; }
+        if (username.length < 3) { addErrMsg.textContent = 'El nombre debe tener al menos 3 caracteres.'; addErrMsg.classList.remove('hidden'); newUsernameInput.focus(); return; }
+        if (!pwd) { addErrMsg.textContent = 'La contraseña es obligatoria.'; addErrMsg.classList.remove('hidden'); newPwdInput.focus(); return; }
+        if (pwd.length < 4) { addErrMsg.textContent = 'La contraseña debe tener al menos 4 caracteres.'; addErrMsg.classList.remove('hidden'); newPwdInput.focus(); return; }
+        if (pwd !== pwdConf) { addErrMsg.textContent = 'Las contraseñas no coinciden.'; addErrMsg.classList.remove('hidden'); newPwdConfInput.value = ''; newPwdConfInput.focus(); return; }
+
+        addUserBtn.disabled = true;
+        addUserBtn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>Creando...';
+
+        const result = await registerUser(username, pwd);
+
+        addUserBtn.disabled = false;
+        addUserBtn.textContent = '✅ Crear usuario';
+
+        if (result.success) {
+            showMessage(`✅ Usuario "${username}" creado correctamente`, 'success');
+            newUsernameInput.value = '';
+            newPwdInput.value = '';
+            newPwdConfInput.value = '';
+            // Volver a la lista y refrescarla
+            switchTab('list');
+            renderUserList();
+        } else {
+            addErrMsg.textContent = result.error;
+            addErrMsg.classList.remove('hidden');
+        }
+    }
+
+    addUserBtn.addEventListener('click', handleAddUser);
+    [newUsernameInput, newPwdInput, newPwdConfInput].forEach(inp => {
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleAddUser(); } });
+    });
+
+    addPanel.appendChild(newUsernameInput);
+    addPanel.appendChild(newPwdInput);
+    addPanel.appendChild(newPwdConfInput);
+    addPanel.appendChild(addErrMsg);
+    addPanel.appendChild(addUserBtn);
+
+    modal.appendChild(addPanel);
+
+    // ── Tab switching ─────────────────────────────────────────────────────
+    function switchTab(tabName) {
+        activeTab = tabName;
+        Object.entries(tabBtns).forEach(([id, btn]) => {
+            const isActive = id === `tab-${tabName}`;
+            btn.className = `px-4 py-2 text-sm font-medium transition-colors rounded-t-lg border-b-2 -mb-px
+                ${isActive
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'}`;
+        });
+        Object.entries(panels).forEach(([name, panel]) => {
+            panel.style.display = name === tabName ? '' : 'none';
+        });
+    }
+
+    tabBtns['tab-list'].addEventListener('click', () => switchTab('list'));
+    tabBtns['tab-add'].addEventListener('click', () => { if (isAdmin) switchTab('add'); });
+
+    // ── Botón cerrar (footer) ─────────────────────────────────────────────
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'mt-2 w-full px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors';
+    closeBtn.className = 'mt-5 w-full px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors';
     closeBtn.textContent = 'Cerrar';
-
-    modal.appendChild(title);
-    modal.appendChild(list);
     modal.appendChild(closeBtn);
+
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    closeBtn.focus();
-
+    // ── Cierre ────────────────────────────────────────────────────────────
     function closeDialog() {
         overlay.remove();
         document.removeEventListener('keydown', onKeyDown);
     }
-
     function onKeyDown(e) {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            closeDialog();
-        }
+        if (e.key === 'Escape') { e.preventDefault(); closeDialog(); }
     }
     document.addEventListener('keydown', onKeyDown);
-
     closeBtn.addEventListener('click', closeDialog);
-
-    overlay.addEventListener('click', e => {
-        if (e.target === overlay) closeDialog();
-    });
+    closeTopBtn.addEventListener('click', closeDialog);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeDialog(); });
 }
+
+// ---------------------------------------------------------------------
+// Diálogo para renombrar usuario
+// ---------------------------------------------------------------------
+
+function showRenameUserDialog(username, onSuccess) {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'app-modal';
+    modal.style.maxWidth = '28rem';
+
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1';
+    titleEl.textContent = '✏️ Renombrar usuario';
+
+    const desc = document.createElement('p');
+    desc.className = 'text-sm text-gray-500 dark:text-gray-400 mb-4';
+    desc.textContent = `Cambiar el nombre de "${username}":`;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = username;
+    input.className = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2';
+
+    const errMsg = document.createElement('p');
+    errMsg.className = 'text-red-500 dark:text-red-400 text-xs mb-3 hidden';
+
+    const btns = document.createElement('div');
+    btns.className = 'flex justify-end gap-3 mt-2';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'px-4 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors';
+    cancelBtn.textContent = 'Cancelar';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'px-4 py-2 rounded-lg font-medium text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600 transition-colors';
+    saveBtn.textContent = 'Guardar';
+
+    async function handleSave() {
+        errMsg.classList.add('hidden');
+        const newName = input.value.trim();
+        saveBtn.disabled = true;
+        const result = await renameUser(username, newName);
+        saveBtn.disabled = false;
+        if (result.success) {
+            close();
+            showMessage(`✅ Usuario renombrado a "${newName}"`, 'success');
+            if (onSuccess) onSuccess();
+        } else {
+            errMsg.textContent = result.error;
+            errMsg.classList.remove('hidden');
+            input.focus();
+        }
+    }
+
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); } });
+    saveBtn.addEventListener('click', handleSave);
+
+    btns.appendChild(cancelBtn);
+    btns.appendChild(saveBtn);
+
+    modal.appendChild(titleEl);
+    modal.appendChild(desc);
+    modal.appendChild(input);
+    modal.appendChild(errMsg);
+    modal.appendChild(btns);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    input.select();
+    input.focus();
+
+    function close() {
+        overlay.remove();
+        document.removeEventListener('keydown', kd);
+    }
+    function kd(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+    document.addEventListener('keydown', kd);
+    cancelBtn.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+}
+
+
 
 // ---------------------------------------------------------------------
 // Diálogo para cambiar contraseña

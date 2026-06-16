@@ -301,6 +301,79 @@ export async function deleteUser(username) {
 }
 
 /**
+ * Renombra un usuario (solo admin, no se puede renombrar a sí mismo).
+ * Copia el registro con el nuevo nombre y elimina el antiguo.
+ * @param {string} oldUsername
+ * @param {string} newUsername
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function renameUser(oldUsername, newUsername) {
+    const current = getCurrentUser();
+    if (!current || !current.isAdmin) {
+        return { success: false, error: 'Solo los administradores pueden renombrar usuarios.' };
+    }
+    if (!newUsername || newUsername.length < 3) {
+        return { success: false, error: 'El nuevo nombre debe tener al menos 3 caracteres.' };
+    }
+    if (oldUsername === newUsername) {
+        return { success: false, error: 'El nuevo nombre es igual al actual.' };
+    }
+
+    const ref = getUsersRef();
+    if (!ref) return { success: false, error: 'Firebase no está conectado.' };
+
+    try {
+        const allUsers = await fetchAllUsers();
+
+        if (!allUsers[oldUsername]) {
+            return { success: false, error: 'Usuario no encontrado.' };
+        }
+        if (allUsers[newUsername]) {
+            return { success: false, error: `El nombre "${newUsername}" ya está en uso.` };
+        }
+
+        const userData = { ...allUsers[oldUsername], username: newUsername };
+        await ref.child(newUsername).set(userData);
+        await ref.child(oldUsername).remove();
+
+        return { success: true };
+    } catch (err) {
+        console.error('Error al renombrar usuario:', err);
+        return { success: false, error: 'Error de conexión con Firebase.' };
+    }
+}
+
+/**
+ * Actualiza el rol de administrador de un usuario (solo administradores, no sobre sí mismo).
+ * @param {string} username
+ * @param {boolean} isAdmin
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function updateUserRole(username, isAdmin) {
+    const current = getCurrentUser();
+    if (!current || !current.isAdmin) {
+        return { success: false, error: 'Solo los administradores pueden cambiar roles.' };
+    }
+    if (current.username === username) {
+        return { success: false, error: 'No puedes cambiar tu propio rol.' };
+    }
+
+    const ref = getUsersRef();
+    if (!ref) return { success: false, error: 'Firebase no está conectado.' };
+
+    try {
+        await ref.child(username).child('isAdmin').set(isAdmin);
+        return { success: true };
+    } catch (err) {
+        console.error('Error al actualizar rol de usuario:', err);
+        return { success: false, error: 'Error de conexión con Firebase.' };
+    }
+}
+
+
+
+
+/**
  * Actualiza la UI para reflejar el estado de autenticación.
  * Muestra/oculta el panel de login y la info del usuario.
  */
