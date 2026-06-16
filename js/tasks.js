@@ -211,54 +211,59 @@ export function addTask(text, labelId) {
 
 /**
  * Cambia la etiqueta de una tarea a la siguiente del ciclo.
+ * Actualiza el elemento de la etiqueta en el DOM en lugar de re-renderizar
+ * toda la tarjeta, evitando así que el texto u otros contenidos cambien.
  */
-// Guard para evitar que cycleTaskLabel se ejecute múltiples veces
-// para la misma tarea si el clic se propaga a varios elementos
-// (por ejemplo, si hay elementos `.task-card` duplicados en el DOM).
-let _cycleInProgress = false;
-let _lastCycledTaskId = null;
-
 export function cycleTaskLabel(taskId) {
-    // Si ya estamos procesando UN ciclo de etiqueta, ignorar llamadas
-    // adicionales. Esto evita que el event handler se dispare múltiples
-    // veces para el mismo clic cuando hay elementos duplicados en el DOM.
-    if (_cycleInProgress && _lastCycledTaskId === taskId) {
-        console.warn('cycleTaskLabel: ciclo en progreso para tarea', taskId, 'ignorando llamada duplicada');
-        return;
-    }
-    _cycleInProgress = true;
-    _lastCycledTaskId = taskId;
-
-    console.log('=== cycleTaskLabel INICIO ===', { taskId, tasksBefore: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
-
     // Limpiar posibles duplicados antes de operar
     state.tasks = deduplicateTasks(state.tasks);
 
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) {
         console.warn('cycleTaskLabel: tarea no encontrada', taskId);
-        _cycleInProgress = false;
         return;
     }
+
     const next = getNextLabel(task.label);
-    console.log('cycleTaskLabel: tarea encontrada', { id: task.id, text: task.text, oldLabel: task.label, newLabel: next?.id || null, nextLabelName: next?.name || null });
     task.label = next ? next.id : null;
-    // Eliminar TODOS los elementos .task-card con este ID (incluyendo
-    // posibles fantasmas de versiones anteriores). Luego renderTask
-    // creará UNO nuevo y solo ese quedará.
-    const ghosts = document.querySelectorAll(`.task-card[data-task-id="${taskId}"]`);
-    console.log('cycleTaskLabel: eliminando', ghosts.length, 'elementos fantasma');
-    ghosts.forEach(el => el.remove());
-    renderTask(task);
+
+    // Actualizar el elemento de etiqueta en el DOM en lugar de re-renderizar
+    // toda la tarjeta. Esto evita que el texto u otros campos de la tarjeta
+    // se vean afectados por la re-renderización.
+    const cardEl = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+    if (cardEl) {
+        // Actualizar el data-label del card para que el filtro funcione
+        cardEl.dataset.label = task.label || '';
+
+        // Buscar el span de la etiqueta dentro de la tarjeta
+        const labelSpan = cardEl.querySelector('[data-action="cycle-label"]');
+        if (labelSpan) {
+            // Reconstruir solo el span de etiqueta con la nueva etiqueta
+            const label = task.label ? getLabelById(task.label) : null;
+            if (label) {
+                labelSpan.className = `inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${label.bg} ${label.text} cursor-pointer hover:opacity-80 transition-opacity`;
+                labelSpan.title = 'Cambiar etiqueta';
+                labelSpan.innerHTML = `<span class="w-1.5 h-1.5 ${label.dot} rounded-full"></span>${escapeHtml(label.name)}`;
+            } else {
+                // Sin etiqueta: mostrar botón "Añadir etiqueta"
+                labelSpan.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-400 border border-dashed border-gray-300 cursor-pointer hover:border-gray-400 hover:text-gray-500 transition-colors';
+                labelSpan.title = 'Añadir etiqueta';
+                labelSpan.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Etiqueta`;
+            }
+        } else {
+            // Fallback: re-renderizar si no se encontró el span
+            const ghosts = document.querySelectorAll(`.task-card[data-task-id="${taskId}"]`);
+            ghosts.forEach(el => el.remove());
+            renderTask(task);
+        }
+    } else {
+        // La tarjeta no existe en el DOM: renderizarla
+        renderTask(task);
+    }
+
     markDirty();
     saveTasksToFirebase();
-    // Ejecutar updateCounts() para que cleanupDomDuplicates() limpie
-    // posibles fantasmas de OTRAS tareas (no de la actual, que ya
-    // fue limpiada por querySelectorAll).
     updateCounts();
-    console.log('=== cycleTaskLabel FIN ===', { tasksAfter: JSON.parse(JSON.stringify(state.tasks.map(t => ({id:t.id, text:t.text, label:t.label, status:t.status})))) });
-
-    _cycleInProgress = false;
 }
 
 export function deleteTask(taskId) {
@@ -266,7 +271,9 @@ export function deleteTask(taskId) {
     state.tasks = deduplicateTasks(state.tasks);
 
     state.tasks = state.tasks.filter(t => t.id !== taskId);
-    const el = document.querySelector(`[data-task-id="${taskId}"]`);
+    // Usar '.task-card[data-task-id]' para no eliminar elementos hijos
+    // (label span, h4, botones) que también llevan data-task-id.
+    const el = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
     if (el) el.remove();
     updateCounts();
     markDirty();
@@ -282,7 +289,9 @@ export function moveTask(taskId, newStatus) {
     if (!task) return;
 
     task.status = newStatus;
-    const el = document.querySelector(`[data-task-id="${taskId}"]`);
+    // Usar '.task-card[data-task-id]' para no eliminar elementos hijos
+    // (label span, h4, botones) que también llevan data-task-id.
+    const el = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
     if (el) el.remove();
     renderTask(task);
     updateCounts();

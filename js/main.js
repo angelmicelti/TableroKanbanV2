@@ -428,9 +428,16 @@ function setupGlobalEventDelegation() {
     });
 
     document.addEventListener('dblclick', e => {
-        const target = e.target.closest('[data-action="edit-task"]');
-        if (target) {
-            editTask(parseInt(target.dataset.taskId, 10));
+        // Doble clic en el botón de editar (lápiz)
+        const editBtn = e.target.closest('[data-action="edit-task"]');
+        if (editBtn) {
+            editTask(parseInt(editBtn.dataset.taskId, 10));
+            return;
+        }
+        // Doble clic en el título de la tarea (h4 con data-dblclick-edit)
+        const titleEl = e.target.closest('[data-dblclick-edit]');
+        if (titleEl) {
+            editTask(parseInt(titleEl.dataset.taskId, 10));
         }
     });
 }
@@ -503,7 +510,7 @@ function setupDragAndDrop() {
     const board = document.getElementById('kanban-board');
     if (board) {
         board.addEventListener('dragstart', e => {
-            const el = e.target.closest('[data-task-id]');
+            const el = e.target.closest('.task-card[data-task-id]');
             if (el) {
                 draggedTaskId = el.dataset.taskId;
                 e.dataTransfer.setData('text/plain', draggedTaskId);
@@ -515,7 +522,7 @@ function setupDragAndDrop() {
 
         board.addEventListener('dragend', () => {
             if (draggedTaskId) {
-                const el = document.querySelector(`[data-task-id="${draggedTaskId}"]`);
+                const el = document.querySelector(`.task-card[data-task-id="${draggedTaskId}"]`);
                 if (el) el.classList.remove('opacity-30');
             }
             document.querySelectorAll('.drag-indicator').forEach(el => el.remove());
@@ -535,7 +542,8 @@ function setupDragAndDrop() {
             column.querySelectorAll('.drag-indicator').forEach(el => el.remove());
 
             // Encontrar la tarjeta sobre la que estamos (mitad superior = antes, inferior = después)
-            const cards = column.querySelectorAll('[data-task-id]:not(.opacity-30)');
+            // Usar .task-card para no posicionarse sobre elementos hijos
+            const cards = column.querySelectorAll('.task-card[data-task-id]:not(.opacity-30)');
             let insertBefore = null;
             for (const card of cards) {
                 const rect = card.getBoundingClientRect();
@@ -578,7 +586,8 @@ function setupDragAndDrop() {
             const oldStatus = task.status;
 
             // Encontrar dónde insertar según la posición del cursor en el momento del drop
-            const cards = column.querySelectorAll('[data-task-id]');
+            // Usar .task-card para no iterar sobre elementos hijos que también llevan data-task-id
+            const cards = column.querySelectorAll('.task-card[data-task-id]');
             let insertBeforeNode = null;
             for (const card of cards) {
                 if (parseInt(card.dataset.taskId, 10) === taskId) continue;
@@ -590,7 +599,8 @@ function setupDragAndDrop() {
             }
 
             // --- Mover el elemento en el DOM ---
-            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            // Usar .task-card para no seleccionar elementos hijos (label span, h4, botones)
+            const taskElement = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
             if (taskElement) {
                 taskElement.remove();
                 taskElement.classList.remove('opacity-30');
@@ -1305,7 +1315,7 @@ function updateDebugPanel() {
     ];
     ['no-iniciado', 'en-proceso', 'finalizado'].forEach(status => {
         const el = document.getElementById(status);
-        const count = el ? el.querySelectorAll('[data-task-id]').length : -1;
+        const count = el ? el.querySelectorAll('.task-card[data-task-id]').length : -1;
         lines.push(`  ${status}: DOM=${count} state=${state.tasks.filter(t => t.status === status).length}`);
     });
     content.textContent = lines.join('\n');
